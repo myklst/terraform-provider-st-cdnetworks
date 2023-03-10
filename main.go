@@ -14,7 +14,7 @@ import (
 func main() {
 	providerAddress := os.Getenv("PROVIDER_LOCAL_PATH")
 	if providerAddress == "" {
-		providerAddress = "registry.terraform.io/styumyum/st-cdnetworks"
+		providerAddress = "registry.terraform.io/myklst/st-cdnetworks"
 	}
 	providerserver.Serve(context.Background(), cdnetworks.New, providerserver.ServeOpts{
 		Address: providerAddress,

@@ -26,13 +26,13 @@ Local Installation
     ```
     terraform {
       required_providers {
-        st-aws = {
+        st-cdnetworks = {
           source = "example.local/myklst/st-cdnetworks"
         }
       }
     }
 
-    provider "st-aws" {}
+    provider "st-cdnetworks" {}
     ```
 
 Why Custom Provider
