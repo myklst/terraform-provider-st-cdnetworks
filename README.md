@@ -19,7 +19,7 @@ Requirements
 Local Installation
 ------------------
 
-1. Run make file `make install-local-custom-provider` to install the provider under ~/.terraform.d/plugins.
+1. Run `make install-local-custom-provider` to install the provider under ~/.terraform.d/plugins.
 
 2. The provider source should be change to the path that configured in the *Makefile*:
 
