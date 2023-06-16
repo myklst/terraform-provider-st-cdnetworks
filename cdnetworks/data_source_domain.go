@@ -2,8 +2,11 @@ package cdnetworks
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -93,10 +96,34 @@ func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	domainResp, err := d.client.QueryDomain(domainName)
+	var domainResp cdnetworksapi.QueryDomainResponse
+	var err error
+	createGtmInstance := func() error {
+		domainResp, err = d.client.QueryDomain(domainName)
+		if err != nil {
+			if _t, ok := err.(*cdnetworksapi.ErrorResponse); ok {
+				// Ignore domain not found error and escape the backoff retry.
+				if _t.ResponseCode == "NoSuchDomain" {
+					return backoff.Permanent(fmt.Errorf("NoSuchDomain"))
+				}
+				if isAbleToRetry(_t.ResponseCode) {
+					return err
+				} else {
+					return backoff.Permanent(err)
+				}
+			} else {
+				return err
+			}
+		}
+		return nil
+	}
 
+	// Retry backoff
+	reconnectBackoff := backoff.NewExponentialBackOff()
+	reconnectBackoff.MaxElapsedTime = 10 * time.Minute
+	err = backoff.Retry(createGtmInstance, reconnectBackoff)
 	if err != nil {
-		if strings.Contains(err.Error(), "status: 404") {
+		if err.Error() == "NoSuchDomain" {
 			state.DomainName = types.StringNull()
 			state.DomainCname = types.StringNull()
 			state.OriginConfig = &originConfig{
