@@ -113,17 +113,12 @@ func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		plan.ClientConfig = &clientConfig{}
 	}
 
-	var username, apiKey string
 	initClient := false
-	if !(plan.ClientConfig.Username.IsUnknown() && plan.ClientConfig.Username.IsNull()) {
-		if username = plan.ClientConfig.Username.ValueString(); username != "" {
-			initClient = true
-		}
-	}
-	if !(plan.ClientConfig.ApiKey.IsUnknown() && plan.ClientConfig.ApiKey.IsNull()) {
-		if apiKey = plan.ClientConfig.ApiKey.ValueString(); apiKey != "" {
-			initClient = true
-		}
+	username := plan.ClientConfig.Username.ValueString()
+	apiKey := plan.ClientConfig.ApiKey.ValueString()
+
+	if username != "" || apiKey != "" {
+		initClient = true
 	}
 
 	if initClient {
