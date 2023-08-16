@@ -30,6 +30,7 @@ type domainDataSource struct {
 }
 
 type domainDataSourceModel struct {
+	ClientConfig *clientConfig `tfsdk:"client_config"`
 	DomainName   types.String  `tfsdk:"domain_name"`
 	DomainCname  types.String  `tfsdk:"domain_cname"`
 	OriginConfig *originConfig `tfsdk:"origin_config"`
@@ -37,6 +38,11 @@ type domainDataSourceModel struct {
 
 type originConfig struct {
 	OriginIps types.List `tfsdk:"origin_ips"`
+}
+
+type clientConfig struct {
+	Username types.String `tfsdk:"username"`
+	ApiKey   types.String `tfsdk:"api_key"`
 }
 
 func (d *domainDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -66,6 +72,24 @@ func (d *domainDataSource) Schema(_ context.Context, req datasource.SchemaReques
 				},
 			},
 		},
+		Blocks: map[string]schema.Block{
+			"client_config": schema.SingleNestedBlock{
+				Description: "Config to override default client created in Provider. " +
+					"This block will not be recorded in state file.",
+				Attributes: map[string]schema.Attribute{
+					"username": schema.StringAttribute{
+						Description: "The username of CDNetworks account. Default " +
+							"to use username configured in the provider.",
+						Optional: true,
+					},
+					"api_key": schema.StringAttribute{
+						Description: "The api key of CDNetworks account. Default " +
+							"to use api key configured in the provider.",
+						Optional: true,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -78,11 +102,41 @@ func (d *domainDataSource) Configure(_ context.Context, req datasource.Configure
 }
 
 func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var plan, state domainDataSourceModel
+	var plan, state *domainDataSourceModel
 	diags := req.Config.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	if plan.ClientConfig == nil {
+		plan.ClientConfig = &clientConfig{}
+	}
+
+	initClient := false
+	username := plan.ClientConfig.Username.ValueString()
+	apiKey := plan.ClientConfig.ApiKey.ValueString()
+
+	if username != "" || apiKey != "" {
+		initClient = true
+	}
+
+	if initClient {
+		if username == "" {
+			username = d.client.Username
+		}
+		if apiKey == "" {
+			apiKey = d.client.ApiKey
+		}
+		var err error
+		if d.client, err = cdnetworksapi.NewClient(username, apiKey); err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Reinitialize CDNetworks API Client",
+				"This is an error in provider, please contact the provider developers.\n\n"+
+					"Error: "+err.Error(),
+			)
+			return
+		}
 	}
 
 	domainName := plan.DomainName.ValueString()
@@ -118,6 +172,11 @@ func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return nil
 	}
 
+	state = &domainDataSourceModel{
+		OriginConfig: &originConfig{
+			OriginIps: types.ListNull(types.StringType),
+		},
+	}
 	// Retry backoff
 	reconnectBackoff := backoff.NewExponentialBackOff()
 	reconnectBackoff.MaxElapsedTime = 10 * time.Minute

@@ -25,10 +25,23 @@ data "st-cdnetworks_domain" "cdn_domain" {
 
 - `domain_name` (String) Domain name of domain.
 
+### Optional
+
+- `client_config` (Block, Optional) Config to override default client created in Provider. This block will not be recorded in state file. (see [below for nested schema](#nestedblock--client_config))
+
 ### Read-Only
 
 - `domain_cname` (String) Domain Cname of domain.
 - `origin_config` (Object) Origin configuration of domain. (see [below for nested schema](#nestedatt--origin_config))
+
+<a id="nestedblock--client_config"></a>
+### Nested Schema for `client_config`
+
+Optional:
+
+- `username` (String) The username of CDNetworks account. Default to use username configured in the provider.
+- `api_key` (String) The api key of CDNetworks account. Default to use api key configured in the provider.
+
 
 <a id="nestedatt--origin_config"></a>
 ### Nested Schema for `origin_config`
