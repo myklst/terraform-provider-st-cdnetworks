@@ -154,9 +154,23 @@ func (p *cdnetworksProvider) Configure(ctx context.Context, req provider.Configu
 func (p *cdnetworksProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewDomainDataSource,
+		NewCertDataSource,
 	}
 }
 
 func (p *cdnetworksProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewSslCertificateResource,
+		NewCdnDomainResource,
+		NewShieldDomainResource,
+		NewDomainSslAssociationResource,
+		NewHttpHeaderConfigResource,
+		NewHttp2SettingsConfigResource,
+		NewAntiHotlinkingConfigResource,
+		NewBackToOriginProtocolRewriteConfigResource,
+		NewCacheTimeResource,
+		NewQueryStringUrlConfigResource,
+		NewHttpCodeCacheConfigResource,
+		NewIgnoreProtocolResource,
+	}
 }
