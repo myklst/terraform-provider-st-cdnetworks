@@ -31,7 +31,7 @@ data "st-cdnetworks_domain" "cdn_domain" {
 
 ### Read-Only
 
-- `domain_cname` (String) Domain Cname of domain.
+- `domain_cname` (String) Domain CNAME of domain.
 - `origin_config` (Object) Origin configuration of domain. (see [below for nested schema](#nestedatt--origin_config))
 
 <a id="nestedblock--client_config"></a>
@@ -39,8 +39,8 @@ data "st-cdnetworks_domain" "cdn_domain" {
 
 Optional:
 
-- `username` (String) The username of CDNetworks account. Default to use username configured in the provider.
 - `api_key` (String) The api key of CDNetworks account. Default to use api key configured in the provider.
+- `username` (String) The username of CDNetworks account. Default to use username configured in the provider.
 
 
 <a id="nestedatt--origin_config"></a>
@@ -49,5 +49,3 @@ Optional:
 Read-Only:
 
 - `origin_ips` (List of String)
-
-
