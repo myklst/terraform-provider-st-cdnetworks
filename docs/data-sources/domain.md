@@ -31,7 +31,7 @@ data "st-cdnetworks_domain" "cdn_domain" {
 
 ### Read-Only
 
-- `domain_cname` (String) Domain Cname of domain.
+- `domain_cname` (String) Domain CNAME of domain.
 - `origin_config` (Object) Origin configuration of domain. (see [below for nested schema](#nestedatt--origin_config))
 
 <a id="nestedblock--client_config"></a>

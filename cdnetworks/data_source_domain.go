@@ -59,7 +59,7 @@ func (d *domainDataSource) Schema(_ context.Context, req datasource.SchemaReques
 				Required:    true,
 			},
 			"domain_cname": schema.StringAttribute{
-				Description: "Domain Cname of domain.",
+				Description: "Domain CNAME of domain.",
 				Computed:    true,
 			},
 			"origin_config": schema.ObjectAttribute{
@@ -152,7 +152,7 @@ func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 
 	var domainResp cdnetworksapi.QueryDomainResponse
 	var err error
-	createGtmInstance := func() error {
+	queryDomainFunc := func() error {
 		domainResp, err = d.client.QueryDomain(domainName)
 		if err != nil {
 			if _t, ok := err.(*cdnetworksapi.ErrorResponse); ok {
@@ -180,8 +180,7 @@ func (d *domainDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	// Retry backoff
 	reconnectBackoff := backoff.NewExponentialBackOff()
 	reconnectBackoff.MaxElapsedTime = 10 * time.Minute
-	err = backoff.Retry(createGtmInstance, reconnectBackoff)
-	if err != nil {
+	if err := backoff.Retry(queryDomainFunc, reconnectBackoff); err != nil {
 		if err.Error() == "NoSuchDomain" {
 			state.DomainName = types.StringNull()
 			state.DomainCname = types.StringNull()
