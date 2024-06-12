@@ -8,7 +8,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
@@ -29,6 +31,9 @@ var DomainSchema = schema.Schema{
 		"domain": &schema.StringAttribute{
 			Description: "CDN accelerated domain name.",
 			Required:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.RequiresReplace(),
+			},
 		},
 		"cname": &schema.StringAttribute{
 			Description: "Cname",
@@ -44,13 +49,19 @@ var DomainSchema = schema.Schema{
 			Description: "The deployment status of the accelerate domain name. Deployed indicates that the accelerated domain name configuration is complete. InProgress indicates that the deployment task of the accelerated domain name configuration is still in progress, and may be in queue, deployed, or failed.",
 			Computed:    true,
 		},
+		"accelerate_no_china": &schema.StringAttribute{
+			Description: "Define is domains is created for mainland or oversea. Default: false",
+			Optional:    true,
+			Computed:    true,
+			Default:     stringdefault.StaticString("false"),
+		},
 		"contract_id": &schema.StringAttribute{
 			Description: "The id of contract",
-			Computed:    true,
+			Required:    true,
 		},
 		"item_id": &schema.StringAttribute{
 			Description: "The id of item",
-			Computed:    true,
+			Required:    true,
 		},
 		"enabled": &schema.BoolAttribute{
 			Description: "Speed up the activation of the domain name. This is false when the accelerated domain name service is disabled; true when the accelerated domain name service is enabled.",
@@ -91,6 +102,45 @@ var DomainSchema = schema.Schema{
 			},
 			Required: true,
 		},
+		"control_group": &schema.SingleNestedAttribute{
+			Description: "Update the specific control group. Binding cdn domains to group represent that it belongs to specific account.",
+			Required:    true,
+			Attributes: map[string]schema.Attribute{
+				"code": schema.StringAttribute{
+					Description: `Control Group code.`,
+					Required:    true,
+				},
+				"name": schema.StringAttribute{
+					Description: `Control Group name.`,
+					Required:    true,
+				},
+				"domain_list": schema.ListAttribute{
+					ElementType: types.StringType,
+					Description: `List of domains to be binded to control group.`,
+					Required:    true,
+				},
+				"account_list": schema.ListNestedAttribute{
+					Description: `Account object array, used to specify accounts with permission. all types of Control Group can be modified, default accountList will be emptied`,
+					Required:    true,
+					NestedObject: schema.NestedAttributeObject{
+						Attributes: map[string]schema.Attribute{
+							"login_name": schema.StringAttribute{
+								Description: `Account name`,
+								Required:    true,
+							},
+						},
+					},
+				},
+				"is_add": schema.BoolAttribute{
+					Description: `Define the action to append or overwrite:
+						1. Do not pass or pass false: rewrite method;
+						2. Pass true: append method.`,
+					Optional: true,
+					Computed: true,
+					Default:  booldefault.StaticBool(true),
+				},
+			},
+		},
 	},
 }
 
@@ -100,18 +150,32 @@ var originConfigModelAttributeTypes = map[string]attr.Type{
 }
 
 type DomainResourceModel struct {
-	DomainId         types.String `tfsdk:"domain_id"`
-	Domain           types.String `tfsdk:"domain"`
-	Cname            types.String `tfsdk:"cname"`
-	Comment          types.String `tfsdk:"comment"`
-	Status           types.String `tfsdk:"status"`
-	ContractId       types.String `tfsdk:"contract_id"`
-	ItemId           types.String `tfsdk:"item_id"`
-	Enabled          types.Bool   `tfsdk:"enabled"`
-	HeaderOfClientIp types.String `tfsdk:"header_of_clientip"`
-	CdnServiceStatus types.String `tfsdk:"cdn_service_status"`
-	ServiceType      types.String `tfsdk:"service_type"`
-	OriginConfig     types.Object `tfsdk:"origin_config"`
+	DomainId          types.String       `tfsdk:"domain_id"`
+	Domain            types.String       `tfsdk:"domain"`
+	Cname             types.String       `tfsdk:"cname"`
+	Comment           types.String       `tfsdk:"comment"`
+	Status            types.String       `tfsdk:"status"`
+	AccelerateNoChina types.String       `tfsdk:"accelerate_no_china"`
+	ContractId        types.String       `tfsdk:"contract_id"`
+	ItemId            types.String       `tfsdk:"item_id"`
+	Enabled           types.Bool         `tfsdk:"enabled"`
+	HeaderOfClientIp  types.String       `tfsdk:"header_of_clientip"`
+	CdnServiceStatus  types.String       `tfsdk:"cdn_service_status"`
+	ServiceType       types.String       `tfsdk:"service_type"`
+	OriginConfig      types.Object       `tfsdk:"origin_config"`
+	ControlGroup      *controlGroupModel `tfsdk:"control_group"`
+}
+
+type controlGroupModel struct {
+	Code         types.String        `tfsdk:"code"`
+	Name         types.String        `tfsdk:"name"`
+	Domain_list  []types.String      `tfsdk:"domain_list"`
+	Account_list []*accountListModel `tfsdk:"account_list"`
+	IsAdd        types.Bool          `tfsdk:"is_add"`
+}
+
+type accountListModel struct {
+	LoginName types.String `tfsdk:"login_name"`
 }
 
 func (model *DomainResourceModel) BuildApiOriginConfig() *cdnetworksapi.OriginConfig {
@@ -119,7 +183,7 @@ func (model *DomainResourceModel) BuildApiOriginConfig() *cdnetworksapi.OriginCo
 	for k, v := range model.OriginConfig.Attributes() {
 		if k == "origin_ips" {
 			list := make([]string, 0)
-			v.(types.List).ElementsAs(nil, &list, false)
+			v.(types.List).ElementsAs(context.TODO(), &list, false)
 			s := strings.Join(list, utils.Separator)
 			config.OriginIps = &s
 		} else if k == "default_origin_host_header" {
@@ -128,6 +192,29 @@ func (model *DomainResourceModel) BuildApiOriginConfig() *cdnetworksapi.OriginCo
 	}
 
 	return config
+}
+
+func (model *DomainResourceModel) BuildEditControlGroupRequest() (code string, req *cdnetworksapi.EditControlGroupRequest) {
+	var domainList []*string
+	for _, domain := range model.ControlGroup.Domain_list {
+		domainList = append(domainList, domain.ValueStringPointer())
+	}
+
+	var accountList []*cdnetworksapi.Account
+	for _, account := range model.ControlGroup.Account_list {
+		accountList = append(accountList, &cdnetworksapi.Account{
+			LoginName: account.LoginName.ValueStringPointer(),
+		})
+	}
+
+	req = &cdnetworksapi.EditControlGroupRequest{
+		ControlGroupName: model.ControlGroup.Name.ValueStringPointer(),
+		DomainList:       domainList,
+		AccountList:      accountList,
+		IsAdd:            model.ControlGroup.IsAdd.ValueBoolPointer(),
+	}
+
+	return model.ControlGroup.Code.ValueString(), req
 }
 
 func (model *DomainResourceModel) UpdateDomainFromApiConfig(ctx context.Context, config *cdnetworksapi.QueryCdnDomainResponse) {
@@ -170,7 +257,7 @@ func (model *DomainResourceModel) CopyComputedFields(src *cdnetworksapi.QueryCdn
 func (model *DomainResourceModel) Check() error {
 	iplist := model.OriginConfig.Attributes()["origin_ips"].(types.List)
 	if len(iplist.Elements()) > 15 {
-		return fmt.Errorf("The number of IPs cannot exceed 15.")
+		return fmt.Errorf("the number of IPs cannot exceed 15")
 	}
 	return nil
 }

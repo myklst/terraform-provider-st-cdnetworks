@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/cenkalti/backoff/v4"
@@ -14,9 +15,15 @@ func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error 
 		if err != nil {
 			return err
 		}
+
 		if *queryCdnDomainResponse.Status == "Deployed" {
 			return nil
 		}
+
+		if *queryCdnDomainResponse.Status == "Reviewing" {
+			return backoff.Permanent(fmt.Errorf("status is in reviewing, please contact to vendor"))
+		}
+
 		return errors.New("deployment is in progress")
 	}
 
