@@ -79,7 +79,7 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 	// Append newly added cdn domains to control_group, to bind to specific account.
 	err = r.bindCdnDomainToControlGroup(model)
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Edit Control Group", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
 		return
 	}
 
@@ -124,15 +124,15 @@ func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadReques
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
 					err := r.bindCdnDomainToControlGroup(model)
 					if err != nil {
-						return backoff.Permanent(err)
+						return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
 					}
 
 					// Retry for queryCdnDomain action
 					return cdnErr
 				}
-				return backoff.Permanent(cdnErr)
+				return backoff.Permanent(fmt.Errorf("unexpected error code. code: %s err: %v", cdnErr.ResponseCode, err))
 			}
-			return backoff.Permanent(err)
+			return backoff.Permanent(fmt.Errorf("queryCdnDomain API error, err: %v", err))
 		}
 
 		model.UpdateDomainFromApiConfig(ctx, &queryCdnDomainResponse)
