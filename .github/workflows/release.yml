@@ -5,8 +5,8 @@ name: Release
 # "v*" (e.g. v0.1.0) is created.
 on:
   push:
-    tags:
-      - 'v*'
+    # tags:
+    #   - 'v*'
     branches:
       - '*'
 
