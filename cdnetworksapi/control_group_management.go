@@ -5,7 +5,7 @@ type EditControlGroupRequest struct {
 	ControlGroupName *string    `json:"controlGroupName,omitempty" xml:"controlGroupName,omitempty"`
 	DomainList       []*string  `json:"domainList,omitempty" xml:"domainList,omitempty"`
 	AccountList      []*Account `json:"accountList,omitempty" xml:"accountList,omitempty"`
-	IsAdd            *bool      `json:"isAdd,omitempty" xml:"isAdd,omitempty"`
+	IsAdd            bool       `json:"isAdd,omitempty" xml:"isAdd,omitempty"`
 }
 
 type Account struct {

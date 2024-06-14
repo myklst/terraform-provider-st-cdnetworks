@@ -45,7 +45,7 @@ func (r *shieldDomainResource) Configure(ctx context.Context, req resource.Confi
 }
 
 func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model DomainResourceModel
+	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
@@ -74,9 +74,9 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 
 	// Save state after cdn is created, prevent become orphan.
 	// But will prompt error for those field that required 'computed' but not inputted.
-	resp.State.Set(ctx, model)
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 
-	// // Append newly added cdn domains to control_group, to bind to specific account.
+	// Append newly added cdn domains to control_group, to bind to specific account.
 	err = r.bindCdnDomainToControlGroup(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Edit Control Group", err.Error())
@@ -88,6 +88,7 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 		resp.Diagnostics.AddError("[API ERROR] Fail to Check DomainStatus", err.Error())
 		return
 	}
+
 	// Required as copying computedFields from queryResponse.
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(model.DomainId.ValueString())
 	if err != nil {
@@ -96,13 +97,11 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	model.CopyComputedFields(&queryCdnDomainResponse)
 
-	// Set state after all 'computed' fields is filled.
 	resp.State.Set(ctx, model)
 }
 
 func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var model DomainResourceModel
-
+	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -120,14 +119,15 @@ func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadReques
 		if err != nil {
 			if cdnErr, ok := err.(*cdnetworksapi.ErrorResponse); ok {
 				if cdnErr.ResponseCode == "WRONG_OPERATOR" {
-					// Bind CDN domains to ControlGroup, in case previously doesn't complete.
+					resp.Diagnostics.AddWarning("[Call API] Trying to bind CDN Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
+					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
 					err := r.bindCdnDomainToControlGroup(model)
 					if err != nil {
-						return err
+						return backoff.Permanent(err)
 					}
 
-					// Retry for QueryCdnDomain()
+					// Retry for queryCdnDomain action
 					return cdnErr
 				}
 				return backoff.Permanent(cdnErr)
@@ -247,11 +247,10 @@ func (r *shieldDomainResource) ModifyPlan(ctx context.Context, req resource.Modi
 	resp.Plan.Set(ctx, plan)
 }
 
-func (r *shieldDomainResource) bindCdnDomainToControlGroup(model DomainResourceModel) error {
-	editControlGroupResponse, err := r.client.EditControlGroup(model.BuildEditControlGroupRequest())
+func (r *shieldDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
 	if err != nil {
-		return fmt.Errorf("[API ERROR] Fail to Edit Control Group. request-id: %s, msg: %s, err: %s",
-			*editControlGroupResponse.RequestId, *editControlGroupResponse.Message, err.Error())
+		return err
 	}
 
 	return nil

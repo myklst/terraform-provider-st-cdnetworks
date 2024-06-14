@@ -45,7 +45,7 @@ func (r *cdnDomainResource) Configure(ctx context.Context, req resource.Configur
 }
 
 func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model DomainResourceModel
+	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
@@ -74,9 +74,9 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 
 	// Save state after cdn is created, prevent become orphan.
 	// But will prompt error for those field that required 'computed' but not inputted.
-	resp.State.Set(ctx, model)
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 
-	// // Append newly added cdn domains to control_group, to bind to specific account.
+	// Append newly added cdn domains to control_group, to bind to specific account.
 	err = r.bindCdnDomainToControlGroup(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Edit Control Group", err.Error())
@@ -101,8 +101,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 }
 
 func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var model DomainResourceModel
-
+	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -120,14 +119,15 @@ func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, 
 		if err != nil {
 			if cdnErr, ok := err.(*cdnetworksapi.ErrorResponse); ok {
 				if cdnErr.ResponseCode == "WRONG_OPERATOR" {
-					// Bind CDN domains to ControlGroup, in case previously doesn't complete.
+					resp.Diagnostics.AddWarning("[Call API] Trying to bind CDN Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
+					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
 					err := r.bindCdnDomainToControlGroup(model)
 					if err != nil {
-						return err
+						return backoff.Permanent(err)
 					}
 
-					// Retry for QueryCdnDomain()
+					// Retry for queryCdnDomain action
 					return cdnErr
 				}
 				return backoff.Permanent(cdnErr)
@@ -247,11 +247,10 @@ func (r *cdnDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 	resp.Plan.Set(ctx, plan)
 }
 
-func (r *cdnDomainResource) bindCdnDomainToControlGroup(model DomainResourceModel) error {
-	editControlGroupResponse, err := r.client.EditControlGroup(model.BuildEditControlGroupRequest())
+func (r *cdnDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
 	if err != nil {
-		return fmt.Errorf("[API ERROR] Fail to Edit Control Group. request-id: %s, msg: %s, err: %s",
-			*editControlGroupResponse.RequestId, *editControlGroupResponse.Message, err.Error())
+		return err
 	}
 
 	return nil
