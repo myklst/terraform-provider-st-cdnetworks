@@ -2,7 +2,9 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
@@ -14,13 +16,22 @@ func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error 
 		if err != nil {
 			return err
 		}
+
 		if *queryCdnDomainResponse.Status == "Deployed" {
 			return nil
 		}
+
+		if *queryCdnDomainResponse.Status == "Reviewing" {
+			return backoff.Permanent(fmt.Errorf("status is in reviewing, please contact to vendor"))
+		}
+
 		return errors.New("deployment is in progress")
 	}
 
-	return backoff.Retry(checkStatus, backoff.NewExponentialBackOff())
+	r := backoff.NewExponentialBackOff()
+	r.MaxElapsedTime = 5 * time.Minute
+
+	return backoff.Retry(checkStatus, r)
 }
 
 func WaitForDomainDeleted(client *cdnetworksapi.Client, domainId string) error {
@@ -34,5 +45,9 @@ func WaitForDomainDeleted(client *cdnetworksapi.Client, domainId string) error {
 		}
 		return errors.New("deployment is in progress")
 	}
-	return backoff.Retry(checkStatus, backoff.NewExponentialBackOff())
+
+	r := backoff.NewExponentialBackOff()
+	r.MaxElapsedTime = 5 * time.Minute
+
+	return backoff.Retry(checkStatus, r)
 }

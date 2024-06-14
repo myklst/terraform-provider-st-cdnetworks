@@ -15,13 +15,14 @@ type CacheBehavior struct {
 // AddCdnDomainService CDNW创建加速域名
 
 type AddCdnDomainRequest struct {
-	Version          string        `json:"version,omitempty" xml:"version,omitempty"`
-	DomainName       *string       `json:"domain-name,omitempty" xml:"domain-name,omitempty"`
-	ContractId       *string       `json:"contract-id,omitempty" xml:"contract-id,omitempty"`
-	ItemId           *string       `json:"item-id,omitempty" xml:"item-id,omitempty"`
-	Comment          *string       `json:"comment,omitempty" xml:"comment,omitempty"`
-	HeaderOfClientIp *string       `json:"header-of-clientip,omitempty" xml:"header-of-clientip,omitempty"`
-	OriginConfig     *OriginConfig `json:"origin-config,omitempty" xml:"origin-config,omitempty"`
+	Version           string        `json:"version,omitempty" xml:"version,omitempty"`
+	DomainName        *string       `json:"domain-name,omitempty" xml:"domain-name,omitempty"`
+	AccelerateNoChina *string       `json:"accelerate-no-china,omitempty" xml:"accelerate-no-china,omitempty"`
+	ContractId        *string       `json:"contract-id,omitempty" xml:"contract-id,omitempty"`
+	ItemId            *string       `json:"item-id,omitempty" xml:"item-id,omitempty"`
+	Comment           *string       `json:"comment,omitempty" xml:"comment,omitempty"`
+	HeaderOfClientIp  *string       `json:"header-of-clientip,omitempty" xml:"header-of-clientip,omitempty"`
+	OriginConfig      *OriginConfig `json:"origin-config,omitempty" xml:"origin-config,omitempty"`
 }
 
 type AddCdnDomainResponse struct {

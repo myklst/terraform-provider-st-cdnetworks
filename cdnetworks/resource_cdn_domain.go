@@ -2,7 +2,9 @@ package cdnetworks
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -43,7 +45,7 @@ func (r *cdnDomainResource) Configure(ctx context.Context, req resource.Configur
 }
 
 func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model DomainResourceModel
+	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
@@ -51,17 +53,33 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	addCdnDomainRequest := cdnetworksapi.AddCdnDomainRequest{
-		Version:          API_VERSION,
-		DomainName:       model.Domain.ValueStringPointer(),
-		ContractId:       model.ContractId.ValueStringPointer(),
-		ItemId:           model.ItemId.ValueStringPointer(),
-		Comment:          model.Comment.ValueStringPointer(),
-		HeaderOfClientIp: model.HeaderOfClientIp.ValueStringPointer(),
-		OriginConfig:     model.BuildApiOriginConfig(),
+		Version:           API_VERSION,
+		DomainName:        model.Domain.ValueStringPointer(),
+		AccelerateNoChina: model.AccelerateNoChina.ValueStringPointer(),
+		ContractId:        model.ContractId.ValueStringPointer(),
+		ItemId:            model.ItemId.ValueStringPointer(),
+		Comment:           model.Comment.ValueStringPointer(),
+		HeaderOfClientIp:  model.HeaderOfClientIp.ValueStringPointer(),
+		OriginConfig:      model.BuildApiOriginConfig(),
 	}
+
 	addCdnDomainResponse, err := r.client.AddCdnDomain(addCdnDomainRequest)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Add CDN Domain", err.Error())
+		return
+	}
+
+	model.DomainId = types.StringValue(*addCdnDomainResponse.DomainId)
+	model.Status = types.StringValue("InProgress")
+
+	// Save state after cdn is created, prevent become orphan.
+	// But will prompt error for those field that required 'computed' but not inputted.
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
+
+	// Append newly added cdn domains to control_group, to bind to specific account.
+	err = r.bindCdnDomainToControlGroup(model)
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
 		return
 	}
 
@@ -71,7 +89,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	model.DomainId = types.StringValue(*addCdnDomainResponse.DomainId)
+	// Required as copying computedFields from queryResponse.
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(model.DomainId.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
@@ -83,8 +101,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 }
 
 func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var model DomainResourceModel
-
+	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -96,13 +113,36 @@ func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, 
 	} else {
 		domain = model.Domain.ValueString()
 	}
-	queryCdnDomainResponse, err := r.client.QueryCdnDomain(domain)
-	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
-		return
+
+	queryCdnDomain := func() error {
+		queryCdnDomainResponse, err := r.client.QueryCdnDomain(domain)
+		if err != nil {
+			if cdnErr, ok := err.(*cdnetworksapi.ErrorResponse); ok {
+				if cdnErr.ResponseCode == "WRONG_OPERATOR" {
+					resp.Diagnostics.AddWarning("[Call API] Trying to bind CDN Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
+					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
+					// Prevent error from Read(), Create() might failed to bind into controlGroup.
+					err := r.bindCdnDomainToControlGroup(model)
+					if err != nil {
+						return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
+					}
+
+					// Retry for queryCdnDomain action
+					return cdnErr
+				}
+				return backoff.Permanent(fmt.Errorf("unexpected error code. code: %s err: %v", cdnErr.ResponseCode, err))
+			}
+			return backoff.Permanent(fmt.Errorf("queryCdnDomain API error, err: %v", err))
+		}
+
+		model.UpdateDomainFromApiConfig(ctx, &queryCdnDomainResponse)
+		return nil
 	}
 
-	model.UpdateDomainFromApiConfig(ctx, &queryCdnDomainResponse)
+	err := backoff.Retry(queryCdnDomain, backoff.NewExponentialBackOff())
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
@@ -205,4 +245,13 @@ func (r *cdnDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		return
 	}
 	resp.Plan.Set(ctx, plan)
+}
+
+func (r *cdnDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
