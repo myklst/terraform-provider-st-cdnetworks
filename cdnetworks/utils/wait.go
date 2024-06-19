@@ -29,7 +29,7 @@ func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error 
 	}
 
 	r := backoff.NewExponentialBackOff()
-	r.MaxElapsedTime = 5 * time.Minute
+	r.MaxElapsedTime = 10 * time.Minute
 
 	return backoff.Retry(checkStatus, r)
 }
@@ -47,7 +47,7 @@ func WaitForDomainDeleted(client *cdnetworksapi.Client, domainId string) error {
 	}
 
 	r := backoff.NewExponentialBackOff()
-	r.MaxElapsedTime = 5 * time.Minute
+	r.MaxElapsedTime = 10 * time.Minute
 
 	return backoff.Retry(checkStatus, r)
 }
