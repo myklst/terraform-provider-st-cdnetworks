@@ -14,37 +14,37 @@ import (
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
 )
 
-type cdnDomainResource struct {
+type floodShieldDomainResource struct {
 	client *cdnetworksapi.Client
 }
 
 var (
-	_ resource.Resource                = &cdnDomainResource{}
-	_ resource.ResourceWithConfigure   = &cdnDomainResource{}
-	_ resource.ResourceWithImportState = &cdnDomainResource{}
-	_ resource.ResourceWithModifyPlan  = &cdnDomainResource{}
+	_ resource.Resource                = &floodShieldDomainResource{}
+	_ resource.ResourceWithConfigure   = &floodShieldDomainResource{}
+	_ resource.ResourceWithImportState = &floodShieldDomainResource{}
+	_ resource.ResourceWithModifyPlan  = &floodShieldDomainResource{}
 )
 
-func NewCdnDomainResource() resource.Resource {
-	return &cdnDomainResource{}
+func NewFloodShieldDomainResource() resource.Resource {
+	return &floodShieldDomainResource{}
 }
 
-func (r *cdnDomainResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_cdn_domain"
+func (r *floodShieldDomainResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_flood_shield_domain"
 }
 
-func (r *cdnDomainResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *floodShieldDomainResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = DomainSchema
 }
 
-func (r *cdnDomainResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *floodShieldDomainResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
 	r.client = req.ProviderData.(*cdnetworksapi.Client)
 }
 
-func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *floodShieldDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
@@ -65,7 +65,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 
 	addCdnDomainResponse, err := r.client.AddCdnDomain(addCdnDomainRequest)
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Add CDN Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Add Flood Shield Domain", err.Error())
 		return
 	}
 
@@ -92,7 +92,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 	// Required as copying computedFields from queryResponse.
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(model.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Flood Shield Domain", err.Error())
 		return
 	}
 	model.CopyComputedFields(&queryCdnDomainResponse)
@@ -100,7 +100,7 @@ func (r *cdnDomainResource) Create(ctx context.Context, req resource.CreateReque
 	resp.State.Set(ctx, model)
 }
 
-func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *floodShieldDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
@@ -141,13 +141,13 @@ func (r *cdnDomainResource) Read(ctx context.Context, req resource.ReadRequest, 
 
 	err := backoff.Retry(queryCdnDomain, backoff.NewExponentialBackOff())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Flood Shield Domain", err.Error())
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
 
-func (r *cdnDomainResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *floodShieldDomainResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var state, plan DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -169,7 +169,7 @@ func (r *cdnDomainResource) Update(ctx context.Context, req resource.UpdateReque
 		}
 		_, err := r.client.UpdateCdnDomain(plan.DomainId.ValueString(), updateCdnDomainRequest)
 		if err != nil {
-			resp.Diagnostics.AddError("[API ERROR] Fail to Update CDN Domain", err.Error())
+			resp.Diagnostics.AddError("[API ERROR] Fail to Update Flood Shield Domain", err.Error())
 			return
 		}
 	} else if plan.Enabled.Equal(state.Enabled) {
@@ -186,7 +186,7 @@ func (r *cdnDomainResource) Update(ctx context.Context, req resource.UpdateReque
 			_, err = r.client.DisableDomain(plan.DomainId.ValueString())
 		}
 		if err != nil {
-			resp.Diagnostics.AddError("[API ERROR] Fail to Enable/Disable CDN Domain", err.Error())
+			resp.Diagnostics.AddError("[API ERROR] Fail to Enable/Disable Flood Shield Domain", err.Error())
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func (r *cdnDomainResource) Update(ctx context.Context, req resource.UpdateReque
 
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(plan.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query CDN Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Flood Shield Domain", err.Error())
 		return
 	}
 	plan.CopyComputedFields(&queryCdnDomainResponse)
@@ -207,7 +207,7 @@ func (r *cdnDomainResource) Update(ctx context.Context, req resource.UpdateReque
 	resp.State.Set(ctx, plan)
 }
 
-func (r *cdnDomainResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *floodShieldDomainResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
@@ -217,7 +217,7 @@ func (r *cdnDomainResource) Delete(ctx context.Context, req resource.DeleteReque
 
 	_, err := r.client.DeleteApiDomain(model.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Delete CDN Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Delete Flood Shield Domain", err.Error())
 		return
 	}
 
@@ -228,11 +228,11 @@ func (r *cdnDomainResource) Delete(ctx context.Context, req resource.DeleteReque
 	}
 }
 
-func (r *cdnDomainResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *floodShieldDomainResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("domain"), req, resp)
 }
 
-func (r *cdnDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+func (r *floodShieldDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	var plan *DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if plan == nil {
@@ -247,7 +247,7 @@ func (r *cdnDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 	resp.Plan.Set(ctx, plan)
 }
 
-func (r *cdnDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+func (r *floodShieldDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
 	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
 	if err != nil {
 		return err

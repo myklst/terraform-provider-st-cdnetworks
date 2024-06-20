@@ -14,37 +14,37 @@ import (
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
 )
 
-type shieldDomainResource struct {
+type contentAccelerationDomainResource struct {
 	client *cdnetworksapi.Client
 }
 
 var (
-	_ resource.Resource                = &shieldDomainResource{}
-	_ resource.ResourceWithConfigure   = &shieldDomainResource{}
-	_ resource.ResourceWithImportState = &shieldDomainResource{}
-	_ resource.ResourceWithModifyPlan  = &shieldDomainResource{}
+	_ resource.Resource                = &contentAccelerationDomainResource{}
+	_ resource.ResourceWithConfigure   = &contentAccelerationDomainResource{}
+	_ resource.ResourceWithImportState = &contentAccelerationDomainResource{}
+	_ resource.ResourceWithModifyPlan  = &contentAccelerationDomainResource{}
 )
 
-func NewShieldDomainResource() resource.Resource {
-	return &shieldDomainResource{}
+func NewContentAccelerationDomainResource() resource.Resource {
+	return &contentAccelerationDomainResource{}
 }
 
-func (r *shieldDomainResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_shield_domain"
+func (r *contentAccelerationDomainResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_content_acceleration_domain"
 }
 
-func (r *shieldDomainResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *contentAccelerationDomainResource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = DomainSchema
 }
 
-func (r *shieldDomainResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *contentAccelerationDomainResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
 	r.client = req.ProviderData.(*cdnetworksapi.Client)
 }
 
-func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *contentAccelerationDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
@@ -65,7 +65,7 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 
 	addCdnDomainResponse, err := r.client.AddCdnDomain(addCdnDomainRequest)
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Add Shield Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Add Content Acceleration Domain", err.Error())
 		return
 	}
 
@@ -92,7 +92,7 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 	// Required as copying computedFields from queryResponse.
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(model.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query Shield Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Content Acceleration Domain", err.Error())
 		return
 	}
 	model.CopyComputedFields(&queryCdnDomainResponse)
@@ -100,7 +100,7 @@ func (r *shieldDomainResource) Create(ctx context.Context, req resource.CreateRe
 	resp.State.Set(ctx, model)
 }
 
-func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *contentAccelerationDomainResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
@@ -119,7 +119,7 @@ func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadReques
 		if err != nil {
 			if cdnErr, ok := err.(*cdnetworksapi.ErrorResponse); ok {
 				if cdnErr.ResponseCode == "WRONG_OPERATOR" {
-					resp.Diagnostics.AddWarning("[Call API] Trying to bind CDN Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
+					resp.Diagnostics.AddWarning("[Call API] Trying to bind Content Acceleration Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
 					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
 					err := r.bindCdnDomainToControlGroup(model)
@@ -141,13 +141,13 @@ func (r *shieldDomainResource) Read(ctx context.Context, req resource.ReadReques
 
 	err := backoff.Retry(queryCdnDomain, backoff.NewExponentialBackOff())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query Shield Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Content Acceleration Domain", err.Error())
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }
 
-func (r *shieldDomainResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *contentAccelerationDomainResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var state, plan DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -169,7 +169,7 @@ func (r *shieldDomainResource) Update(ctx context.Context, req resource.UpdateRe
 		}
 		_, err := r.client.UpdateCdnDomain(plan.DomainId.ValueString(), updateCdnDomainRequest)
 		if err != nil {
-			resp.Diagnostics.AddError("[API ERROR] Fail to Update Shield Domain", err.Error())
+			resp.Diagnostics.AddError("[API ERROR] Fail to Update Content Acceleration Domain", err.Error())
 			return
 		}
 	} else if plan.Enabled.Equal(state.Enabled) {
@@ -186,7 +186,7 @@ func (r *shieldDomainResource) Update(ctx context.Context, req resource.UpdateRe
 			_, err = r.client.DisableDomain(plan.DomainId.ValueString())
 		}
 		if err != nil {
-			resp.Diagnostics.AddError("[API ERROR] Fail to Enable/Disable Shield Domain", err.Error())
+			resp.Diagnostics.AddError("[API ERROR] Fail to Enable/Disable Content Acceleration Domain", err.Error())
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func (r *shieldDomainResource) Update(ctx context.Context, req resource.UpdateRe
 
 	queryCdnDomainResponse, err := r.client.QueryCdnDomain(plan.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Query Shield Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Query Content Acceleration Domain", err.Error())
 		return
 	}
 	plan.CopyComputedFields(&queryCdnDomainResponse)
@@ -207,7 +207,7 @@ func (r *shieldDomainResource) Update(ctx context.Context, req resource.UpdateRe
 	resp.State.Set(ctx, plan)
 }
 
-func (r *shieldDomainResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *contentAccelerationDomainResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var model *DomainResourceModel
 
 	resp.Diagnostics.Append(req.State.Get(ctx, &model)...)
@@ -217,7 +217,7 @@ func (r *shieldDomainResource) Delete(ctx context.Context, req resource.DeleteRe
 
 	_, err := r.client.DeleteApiDomain(model.DomainId.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Delete Shield Domain", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Fail to Delete Content Acceleration Domain", err.Error())
 		return
 	}
 
@@ -228,11 +228,11 @@ func (r *shieldDomainResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 }
 
-func (r *shieldDomainResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *contentAccelerationDomainResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("domain"), req, resp)
 }
 
-func (r *shieldDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+func (r *contentAccelerationDomainResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	var plan *DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if plan == nil {
@@ -247,7 +247,7 @@ func (r *shieldDomainResource) ModifyPlan(ctx context.Context, req resource.Modi
 	resp.Plan.Set(ctx, plan)
 }
 
-func (r *shieldDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+func (r *contentAccelerationDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
 	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
 	if err != nil {
 		return err
