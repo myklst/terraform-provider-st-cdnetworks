@@ -161,8 +161,8 @@ func (p *cdnetworksProvider) DataSources(_ context.Context) []func() datasource.
 func (p *cdnetworksProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewSslCertificateResource,
-		NewCdnDomainResource,
-		NewShieldDomainResource,
+		NewContentAccelerationDomainResource,
+		NewFloodShieldDomainResource,
 		NewDomainSslAssociationResource,
 		NewHttpHeaderConfigResource,
 		NewHttp2SettingsConfigResource,
