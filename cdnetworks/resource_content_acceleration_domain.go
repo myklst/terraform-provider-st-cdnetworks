@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
+	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/common"
 	. "github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/model"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
@@ -77,7 +78,7 @@ func (r *contentAccelerationDomainResource) Create(ctx context.Context, req reso
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 
 	// Append newly added cdn domains to control_group, to bind to specific account.
-	err = r.bindCdnDomainToControlGroup(model)
+	common.BindCdnDomainToControlGroup(r.client, model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
 		return
@@ -122,7 +123,7 @@ func (r *contentAccelerationDomainResource) Read(ctx context.Context, req resour
 					resp.Diagnostics.AddWarning("[Call API] Trying to bind Content Acceleration Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
 					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
-					err := r.bindCdnDomainToControlGroup(model)
+					common.BindCdnDomainToControlGroup(r.client, model)
 					if err != nil {
 						return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
 					}
@@ -245,13 +246,4 @@ func (r *contentAccelerationDomainResource) ModifyPlan(ctx context.Context, req 
 		return
 	}
 	resp.Plan.Set(ctx, plan)
-}
-
-func (r *contentAccelerationDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
-	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
