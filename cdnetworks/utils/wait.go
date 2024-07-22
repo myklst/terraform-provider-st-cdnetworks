@@ -12,6 +12,7 @@ import (
 
 func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error {
 	checkStatus := func() error {
+		// QueryCdnDomains ratelimit is 300/s, normally take ~10mins to successfully update.
 		queryCdnDomainResponse, err := client.QueryCdnDomain(domainId)
 		if err != nil {
 			return err
@@ -29,6 +30,7 @@ func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error 
 	}
 
 	r := backoff.NewExponentialBackOff()
+	r.InitialInterval = 30 * time.Second
 	r.MaxElapsedTime = 10 * time.Minute
 
 	return backoff.Retry(checkStatus, r)

@@ -248,9 +248,31 @@ func (r *floodShieldDomainResource) ModifyPlan(ctx context.Context, req resource
 }
 
 func (r *floodShieldDomainResource) bindCdnDomainToControlGroup(model *DomainResourceModel) (err error) {
+edit:
 	_, err = r.client.EditControlGroup(model.BuildEditControlGroupRequest())
 	if err != nil {
 		return err
+	}
+
+	resp, err := r.client.GetDomainListOfControlGroup(&cdnetworksapi.GetDomainListOfControlGroupRequest{
+		ControlGroupCode: []string{model.ControlGroup.Code.ValueString()},
+	})
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, detail := range resp.Data.ControlGroupDetails {
+		for _, domain := range detail.DomainList {
+			if domain == model.Domain.ValueString() {
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		goto edit
 	}
 
 	return nil
