@@ -58,6 +58,10 @@ var DomainSchema = schema.Schema{
 				stringplanmodifier.UseStateForUnknown(),
 			},
 		},
+		"config_form_id": &schema.StringAttribute{
+			Description: "Define the config template to be used for both fs and ca. It will have separated ids that are provided by vendor.",
+			Optional:    true,
+		},
 		"accelerate_no_china": &schema.StringAttribute{
 			Description: "Define is domains is created for mainland or oversea. Default: false",
 			Optional:    true,
@@ -100,6 +104,7 @@ var DomainSchema = schema.Schema{
 		},
 		"origin_config": &schema.SingleNestedAttribute{
 			Description: "Back-to-origin policy setting, which is used to set the origin site information and the back-to-origin policy of the accelerated domain name",
+			Required:    true,
 			Attributes: map[string]schema.Attribute{
 				"origin_ips": schema.ListAttribute{
 					ElementType: types.StringType,
@@ -115,7 +120,6 @@ var DomainSchema = schema.Schema{
 					Computed: true,
 				},
 			},
-			Required: true,
 		},
 		"control_group": &schema.SingleNestedAttribute{
 			Description: "Update the specific control group. Binding cdn domains to group represent that it belongs to specific account.",
@@ -148,6 +152,14 @@ var DomainSchema = schema.Schema{
 				},
 			},
 		},
+		"cache_host": &schema.StringAttribute{
+			Description: "Targeted domain host to share cache from specific CDN.",
+			Optional:    true,
+			Computed:    true,
+			PlanModifiers: []planmodifier.String{
+				stringplanmodifier.UseStateForUnknown(),
+			},
+		},
 	},
 }
 
@@ -162,6 +174,7 @@ type DomainResourceModel struct {
 	Cname             types.String       `tfsdk:"cname"`
 	Comment           types.String       `tfsdk:"comment"`
 	Status            types.String       `tfsdk:"status"`
+	ConfigFormId      types.String       `tfsdk:"config_form_id"`
 	AccelerateNoChina types.String       `tfsdk:"accelerate_no_china"`
 	ContractId        types.String       `tfsdk:"contract_id"`
 	ItemId            types.String       `tfsdk:"item_id"`
@@ -171,6 +184,7 @@ type DomainResourceModel struct {
 	ServiceType       types.String       `tfsdk:"service_type"`
 	OriginConfig      types.Object       `tfsdk:"origin_config"`
 	ControlGroup      *ControlGroupModel `tfsdk:"control_group"`
+	CacheHost         types.String       `tfsdk:"cache_host"`
 }
 
 type ControlGroupModel struct {
@@ -212,6 +226,7 @@ func (model *DomainResourceModel) UpdateDomainFromApiConfig(ctx context.Context,
 	model.CdnServiceStatus = types.StringPointerValue(config.CdnServiceStatus)
 	model.HeaderOfClientIp = types.StringPointerValue(config.HeaderOfClientIp)
 	model.Enabled = types.BoolPointerValue(config.Enabled)
+	model.CacheHost = types.StringPointerValue(config.CacheHost)
 	if config.OriginConfig != nil {
 		defaultOriginHeader := model.Domain
 		if config.OriginConfig.DefaultOriginHostHeader != nil {

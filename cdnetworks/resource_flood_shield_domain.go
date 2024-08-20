@@ -56,6 +56,7 @@ func (r *floodShieldDomainResource) Create(ctx context.Context, req resource.Cre
 	addCdnDomainRequest := cdnetworksapi.AddCdnDomainRequest{
 		Version:           API_VERSION,
 		DomainName:        model.Domain.ValueStringPointer(),
+		ConfigFormId:      model.ConfigFormId.ValueStringPointer(),
 		AccelerateNoChina: model.AccelerateNoChina.ValueStringPointer(),
 		ContractId:        model.ContractId.ValueStringPointer(),
 		ItemId:            model.ItemId.ValueStringPointer(),
@@ -88,6 +89,20 @@ func (r *floodShieldDomainResource) Create(ctx context.Context, req resource.Cre
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Check DomainStatus", err.Error())
 		return
+	}
+
+	// Only trigger UpdateCdnDomain() when cache_host is not "".
+	if model.CacheHost.ValueString() != "" {
+		updateCdnDomainRequest := cdnetworksapi.UpdateCdnDomainRequest{
+			Version:    API_VERSION,
+			DomainName: model.Domain.ValueStringPointer(),
+			CacheHost:  model.CacheHost.ValueStringPointer(),
+		}
+		_, err := r.client.UpdateCdnDomain(model.DomainId.ValueString(), updateCdnDomainRequest)
+		if err != nil {
+			resp.Diagnostics.AddError("[API ERROR] Fail to Update Flood Shield Cache-host for Domain", err.Error())
+			return
+		}
 	}
 
 	// Required as copying computedFields from queryResponse.
@@ -123,7 +138,7 @@ func (r *floodShieldDomainResource) Read(ctx context.Context, req resource.ReadR
 					resp.Diagnostics.AddWarning("[Call API] Trying to bind CDN Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
 					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
 					// Prevent error from Read(), Create() might failed to bind into controlGroup.
-					common.BindCdnDomainToControlGroup(r.client, model)
+					err = common.BindCdnDomainToControlGroup(r.client, model)
 					if err != nil {
 						return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
 					}
@@ -165,6 +180,7 @@ func (r *floodShieldDomainResource) Update(ctx context.Context, req resource.Upd
 			Version:          API_VERSION,
 			DomainName:       plan.Domain.ValueStringPointer(),
 			Comment:          plan.Comment.ValueStringPointer(),
+			CacheHost:        plan.CacheHost.ValueStringPointer(),
 			HeaderOfClientIp: plan.HeaderOfClientIp.ValueStringPointer(),
 			OriginConfig:     plan.BuildApiOriginConfig(),
 		}

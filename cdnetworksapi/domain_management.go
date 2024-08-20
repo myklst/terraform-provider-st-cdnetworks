@@ -19,6 +19,7 @@ type CacheBehavior struct {
 type AddCdnDomainRequest struct {
 	Version           string        `json:"version,omitempty" xml:"version,omitempty"`
 	DomainName        *string       `json:"domain-name,omitempty" xml:"domain-name,omitempty"`
+	ConfigFormId      *string       `json:"config-form-id,omitempty" xml:"config-form-id,omitempty"`
 	AccelerateNoChina *string       `json:"accelerate-no-china,omitempty" xml:"accelerate-no-china,omitempty"`
 	ContractId        *string       `json:"contract-id,omitempty" xml:"contract-id,omitempty"`
 	ItemId            *string       `json:"item-id,omitempty" xml:"item-id,omitempty"`
