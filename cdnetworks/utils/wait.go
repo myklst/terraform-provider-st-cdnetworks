@@ -31,7 +31,7 @@ func WaitForDomainDeployed(client *cdnetworksapi.Client, domainId string) error 
 
 	r := backoff.NewExponentialBackOff()
 	r.InitialInterval = 30 * time.Second
-	r.MaxElapsedTime = 10 * time.Minute
+	r.MaxElapsedTime = 0 // set as infinite retries.
 
 	return backoff.Retry(checkStatus, r)
 }
@@ -49,7 +49,7 @@ func WaitForDomainDeleted(client *cdnetworksapi.Client, domainId string) error {
 	}
 
 	r := backoff.NewExponentialBackOff()
-	r.MaxElapsedTime = 10 * time.Minute
+	r.MaxElapsedTime = 0 // set as infinite retries.
 
 	return backoff.Retry(checkStatus, r)
 }
