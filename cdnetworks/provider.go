@@ -3,8 +3,7 @@ package cdnetworks
 import (
 	"context"
 	"os"
-
-	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -12,11 +11,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
 )
 
 // Ensure the implementation satisfies the expected interfaces
 var (
-	_ provider.Provider = &cdnetworksProvider{}
+	_     provider.Provider = &cdnetworksProvider{}
+	mutex sync.Mutex
 )
 
 // New is a helper function to simplify provider server

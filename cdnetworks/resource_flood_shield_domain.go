@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/common"
 	. "github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/model"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
@@ -46,8 +45,14 @@ func (r *floodShieldDomainResource) Configure(ctx context.Context, req resource.
 }
 
 func (r *floodShieldDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model *DomainResourceModel
+	// Add mutex lock to make sure the resources is created 1 by 1.
+	// As BindControlGroup API might get overwritten.
+	mutex.Lock()
+	defer func() {
+		mutex.Unlock()
+	}()
 
+	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
