@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/common"
 	. "github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/model"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
@@ -46,8 +45,14 @@ func (r *contentAccelerationDomainResource) Configure(ctx context.Context, req r
 }
 
 func (r *contentAccelerationDomainResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model *DomainResourceModel
+	// Add mutex lock to prevent concurrent call to API and overwritten occured.
+	// As BindControlGroup API might being called too fast and data overwritten.
+	mutex.Lock()
+	defer func() {
+		mutex.Unlock()
+	}()
 
+	var model *DomainResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -79,7 +84,7 @@ func (r *contentAccelerationDomainResource) Create(ctx context.Context, req reso
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 
 	// Append newly added cdn domains to control_group, to bind to specific account.
-	common.BindCdnDomainToControlGroup(r.client, model)
+	err = common.BindCdnDomainToControlGroup(r.client, model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
 		return
