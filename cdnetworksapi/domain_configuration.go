@@ -191,6 +191,50 @@ func (c *Client) UpdateBackToOriginRewriteConfig(domainId string, request Update
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// IPv6 Config
+////////////////////////////////////////////////////////////////////////////////
+
+// QueryIPv6Config 查询域名是否使用ipv6资源
+
+type QueryIPv6ConfigResponse struct {
+	DomainId   *string `json:"domain-id" xml:"domain-id"`
+	DomainName *string `json:"domain-name" xml:"domain-name"`
+	UseIpv6    *bool   `json:"use-ipv6" xml:"use-ipv6"`
+}
+
+func (c *Client) QueryIPv6Config(domainId string) (response QueryIPv6ConfigResponse, err error) {
+	var baseResp *BaseResponse
+	baseResp, err = c.DoXmlApiRequest(Request{
+		Method: HttpGet,
+		Path:   "/api/domain/ipv6/" + domainId,
+	}, &response)
+	_ = baseResp
+	return
+}
+
+// UpdateIPv6Config 修改域名是否使用IPv6配置
+
+type UpdateIPv6ConfigRequest struct {
+	XMLName   xml.Name `json:"-" xml:"domain"`
+	IpVersion []string `json:"ipVersion,omitempty" xml:"ipVersion,omitempty"`
+}
+
+type UpdateIPv6ConfigResponse struct {
+	Code    *string `json:"code" xml:"code"`
+	Message *string `json:"message" xml:"message"`
+}
+
+// In Version 2024-09-20 16:30:05, the API only supports JSON format.
+func (c *Client) UpdateIPv6Config(domainId string, request UpdateIPv6ConfigRequest) (response UpdateIPv6ConfigResponse, err error) {
+	_, err = c.DoJsonApiRequest(Request{
+		Method: HttpPut,
+		Path:   "/api/config/ipversion/" + domainId,
+		Body:   request,
+	}, &response)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Http2 Settings
 ////////////////////////////////////////////////////////////////////////////////
 
