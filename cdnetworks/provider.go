@@ -173,5 +173,6 @@ func (p *cdnetworksProvider) Resources(_ context.Context) []func() resource.Reso
 		NewQueryStringUrlConfigResource,
 		NewHttpCodeCacheConfigResource,
 		NewIgnoreProtocolResource,
+		NewIpv6Resource,
 	}
 }
