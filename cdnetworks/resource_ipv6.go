@@ -61,20 +61,19 @@ func (r *ipv6Resource) Configure(ctx context.Context, req resource.ConfigureRequ
 func (r *ipv6Resource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var model ipv6ResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &model)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	// By Default, IPv4 is enabled
-	output := []string{"V4"}
+	ipVersions := []string{"V4"}
 
 	if model.EnableIpv6.ValueBool() {
-		output = append(output, "V6")
+		ipVersions = append(ipVersions, "V6")
 	}
 
 	addIpv6Request := cdnetworksapi.UpdateIPv6ConfigRequest{
-		IpVersion: output,
+		IpVersion: ipVersions,
 	}
 
 	addIPv6ConfigResponse, err := r.client.UpdateIPv6Config(model.DomainId.ValueString(), addIpv6Request)
@@ -124,14 +123,14 @@ func (r *ipv6Resource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	output := []string{"V4"}
+	ipVersions := []string{"V4"}
 
 	if plan.EnableIpv6.ValueBool() {
-		output = append(output, "V6")
+		ipVersions = append(ipVersions, "V6")
 	}
 
 	updateIpv6Request := cdnetworksapi.UpdateIPv6ConfigRequest{
-		IpVersion: output,
+		IpVersion: ipVersions,
 	}
 
 	updateIpv6Response, err := r.client.UpdateIPv6Config(state.DomainId.ValueString(), updateIpv6Request)
@@ -193,8 +192,8 @@ func (r *ipv6Resource) waitForIPv6Config(ctx context.Context, model ipv6Resource
 	}
 
 	s := backoff.NewExponentialBackOff()
-	s.InitialInterval = 30 * time.Second
-	s.MaxElapsedTime = 300 // set as infinite retries.
+	s.InitialInterval = 10 * time.Second
+	s.MaxElapsedTime = 5 * time.Minute
 
 	err := backoff.Retry(checkStatus, s)
 	return err == nil
