@@ -67,20 +67,18 @@ func (r *ipv6Resource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	// By Default, IPv4 is enabled
 	ipVersions := []string{"V4"}
-
 	if model.EnableIpv6.ValueBool() {
 		ipVersions = append(ipVersions, "V6")
 	}
 
-	addIpv6Request := cdnetworksapi.UpdateIPv6ConfigRequest{
+	addIPv6ConfigResponse, err := r.client.UpdateIPv6Config(model.DomainId.ValueString(), cdnetworksapi.UpdateIPv6ConfigRequest{
 		IpVersion: ipVersions,
-	}
-
-	addIPv6ConfigResponse, err := r.client.UpdateIPv6Config(model.DomainId.ValueString(), addIpv6Request)
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Add IPv6", err.Error())
 		return
 	}
+
 	if *addIPv6ConfigResponse.Code != "0" {
 		resp.Diagnostics.AddError("[API ERROR] Error response non 0 code, failed to Add IPv6", *addIPv6ConfigResponse.Message)
 		return
@@ -108,7 +106,6 @@ func (r *ipv6Resource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	state.DomainId = types.StringPointerValue(queryIPv6Response.DomainId)
 	state.EnableIpv6 = types.BoolPointerValue(queryIPv6Response.UseIpv6)
-
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -124,20 +121,18 @@ func (r *ipv6Resource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	ipVersions := []string{"V4"}
-
 	if plan.EnableIpv6.ValueBool() {
 		ipVersions = append(ipVersions, "V6")
 	}
 
-	updateIpv6Request := cdnetworksapi.UpdateIPv6ConfigRequest{
+	updateIpv6Response, err := r.client.UpdateIPv6Config(state.DomainId.ValueString(), cdnetworksapi.UpdateIPv6ConfigRequest{
 		IpVersion: ipVersions,
-	}
-
-	updateIpv6Response, err := r.client.UpdateIPv6Config(state.DomainId.ValueString(), updateIpv6Request)
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Update IPv6", err.Error())
 		return
 	}
+
 	if *updateIpv6Response.Code != "0" {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Update IPv6", *updateIpv6Response.Message)
 		return
@@ -146,12 +141,10 @@ func (r *ipv6Resource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if r.waitForIPv6Config(ctx, plan) {
 		state.DomainId = plan.DomainId
 		state.EnableIpv6 = plan.EnableIpv6
-
 		resp.State.Set(ctx, state)
 	} else {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Add IPv6", "Timeout")
 	}
-
 }
 
 func (r *ipv6Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -162,15 +155,15 @@ func (r *ipv6Resource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	deleteIpv6Request := cdnetworksapi.UpdateIPv6ConfigRequest{
+	// Due to only have Update() func, force it revert to ipv4 only.
+	deleteIPv6Response, err := r.client.UpdateIPv6Config(model.DomainId.ValueString(), cdnetworksapi.UpdateIPv6ConfigRequest{
 		IpVersion: []string{"V4"},
-	}
-
-	deleteIPv6Response, err := r.client.UpdateIPv6Config(model.DomainId.ValueString(), deleteIpv6Request)
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Del IPv6", err.Error())
 		return
 	}
+
 	if *deleteIPv6Response.Code != "0" {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Del IPv6", *deleteIPv6Response.Message)
 		return
@@ -198,4 +191,3 @@ func (r *ipv6Resource) waitForIPv6Config(ctx context.Context, model ipv6Resource
 	err := backoff.Retry(checkStatus, s)
 	return err == nil
 }
-
