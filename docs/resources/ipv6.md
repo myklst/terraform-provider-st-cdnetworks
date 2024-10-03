@@ -26,3 +26,4 @@ resource "st-cdnetworks_ipv6_config" "test" {
 
 - `domain_id` (String) Domain ID
 - `enable_ipv6` (Boolean) Enable IPv6.
+

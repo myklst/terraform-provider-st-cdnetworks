@@ -37,7 +37,7 @@ func (r *ipv6Resource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 func (r *ipv6Resource) Schema(_ context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "The resource control the IPv6 protocol for domain",
+		Description: "Update DNS region IP version, available value: 'V6'",
 		Attributes: map[string]schema.Attribute{
 			"domain_id": &schema.StringAttribute{
 				Description: "Domain id",
@@ -198,3 +198,4 @@ func (r *ipv6Resource) waitForIPv6Config(ctx context.Context, model ipv6Resource
 	err := backoff.Retry(checkStatus, s)
 	return err == nil
 }
+
