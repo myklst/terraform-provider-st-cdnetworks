@@ -48,6 +48,7 @@ Optional:
 
 - `after_rewrite_uri` (String) The rewritten request URI. Supports regular expression.
 - `before_rewrite_uri` (String) The original request URI. Supports regular expression.
+- `data_id` (Number) Used by CDNetworks to keep track of the individual configuration
 - `except_path_pattern` (String) Ignore url rewrite rules if paths match these patterns.
 - `except_path_pattern_http` (String) Whether to match only paths with HTTP or HTTPS protocol only. Default is blank, matches all paths regardless of protocol
 - `ignore_letter_case` (Boolean) Whether to match the letter casing

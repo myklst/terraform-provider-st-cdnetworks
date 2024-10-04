@@ -89,7 +89,7 @@ func (c *Client) UpdateDomainProperty(domainId string, request UpdateDomainPrope
 ////////////////////////////////////////////////////////////////////////////////
 
 type OriginRulesRewrite struct {
-	DataId                *string `json:"dataId,omitempty" xml:"dataId,omitempty"`
+	DataId                *int64  `json:"dataId,omitempty" xml:"dataId,omitempty"`
 	PathPattern           *string `json:"pathPattern,omitempty" xml:"pathPattern,omitempty"`
 	PathPatternHttp       *string `json:"pathPatternHttp,omitempty" xml:"pathPatternHttp,omitempty"`
 	ExceptPathPattern     *string `json:"exceptPathPattern,omitempty" xml:"exceptPathPattern,omitempty"`
@@ -98,8 +98,8 @@ type OriginRulesRewrite struct {
 	OriginInfo            *string `json:"originInfo,omitempty" xml:"originInfo,omitempty"`
 	Priority              *int64  `json:"priority,omitempty" xml:"priority,omitempty"`
 	OriginHost            *string `json:"originHost,omitempty" xml:"originHost,omitempty"`
-	BeforeRewriteUri      *string `json:"beforeRewriteUri,omitempty" xml:"beforeRewriteUri,omitempty"`
-	AfterRewriteUri       *string `json:"afterRewriteUri,omitempty" xml:"afterRewriteUri,omitempty"`
+	BeforeRewriteUri      *string `json:"beforeRewritedUri,omitempty" xml:"beforeRewritedUri,omitempty"` // Spelled as rewrite"d" in docs & api response
+	AfterRewriteUri       *string `json:"afterRewritedUri,omitempty" xml:"afterRewritedUri,omitempty"`   // Spelled as rewrite"d" in docs & api response
 }
 
 // QueryOriginUriAndOriginHost 查询回源uri和host改写
@@ -130,12 +130,23 @@ type UpdateOriginUriAndOriginHostResponse struct {
 	Message *string `json:"message" xml:"message"`
 }
 
-func (c *Client) UpdateOriginUriAndOriginHost(domainId string, request UpdateOriginUriAndOriginHostRequest) (response UpdateOriginUriAndOriginHostResponse, err error) {
+func (c *Client) UpdateOriginUriAndOriginHost(domainId string, request UpdateOriginUriAndOriginHostRequest, dataIdsToDelete []int64) (response UpdateOriginUriAndOriginHostResponse, err error) {
 	for _, v := range request.OriginRulesRewrites {
 		if v.Priority == nil {
 			v.Priority = &intValue10
 		}
 	}
+
+	// Append the dataIds that were marked for deletion.
+	// CDNetwork recognises an object with ONLY the dataId as "To Be Deleted"
+	// This step is performed after setting the default priority.
+	// Adding a priority to the object will mess up the deletion process.
+	for _, v := range dataIdsToDelete {
+		request.OriginRulesRewrites = append(request.OriginRulesRewrites, &OriginRulesRewrite{
+			DataId: &v,
+		})
+	}
+
 	_, err = c.DoXmlApiRequest(Request{
 		Method: HttpPut,
 		Path:   "/api/config/originrulesrewrites/" + domainId,

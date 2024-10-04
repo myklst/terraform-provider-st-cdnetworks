@@ -2,19 +2,24 @@ package cdnetworks
 
 import (
 	"context"
+	"sort"
 	"strings"
 
+	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
 )
 
 type originRulesRewriteModel struct {
+	DataId                types.Int64  `tfsdk:"data_id"`
 	PathPattern           types.String `tfsdk:"path_pattern"`
 	PathPatternHttp       types.String `tfsdk:"path_pattern_http"`
 	ExceptPathPattern     types.String `tfsdk:"except_path_pattern"`
@@ -64,6 +69,14 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 				Description: "Configures path rewrites, alternate origins and url rewrites.",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
+						"data_id": &schema.Int64Attribute{
+							Description: "Used by CDNetworks to keep track of the individual configuration",
+							Optional:    true,
+							Computed:    true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
+						},
 						"path_pattern": &schema.StringAttribute{
 							Description: "Url matching mode supports regular expression. To match all paths, input can be .*",
 							Required:    true,
@@ -133,29 +146,23 @@ func (r *originRulesRewriteConfigResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	originRulesRewrites := []*cdnetworksapi.OriginRulesRewrite{}
-	for _, v := range model.OriginRulesRewrite {
-		originRulesRewrites = append(originRulesRewrites, &cdnetworksapi.OriginRulesRewrite{
-			PathPattern:           v.PathPattern.ValueStringPointer(),
-			PathPatternHttp:       v.PathPatternHttp.ValueStringPointer(),
-			ExceptPathPattern:     v.ExceptPathPattern.ValueStringPointer(),
-			ExceptPathPatternHttp: v.ExceptPathPatternHttp.ValueStringPointer(),
-			IgnoreLetterCase:      v.IgnoreLetterCase.ValueBoolPointer(),
-			OriginInfo:            v.OriginInfo.ValueStringPointer(),
-			Priority:              v.Priority.ValueInt64Pointer(),
-			OriginHost:            v.OriginHost.ValueStringPointer(),
-			BeforeRewriteUri:      v.BeforeRewriteUri.ValueStringPointer(),
-			AfterRewriteUri:       v.AfterRewriteUri.ValueStringPointer(),
-		})
+	err := r.updateConfig(model, nil)
+	if err != nil {
+		resp.Diagnostics.AddError("[API Error]Fail to update origin_rules_rewrites", err.Error())
+		return
 	}
 
-	_, err := r.client.UpdateOriginUriAndOriginHost(model.DomainId.ValueString(), cdnetworksapi.UpdateOriginUriAndOriginHostRequest{
-		OriginRulesRewrites: originRulesRewrites,
-	})
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to set origin_rules_rewrites", err.Error())
 		return
 	}
+
+	err = r.updateModel(model)
+	if err != nil {
+		resp.Diagnostics.AddError("[API Error]Fail to query origin_rules_rewrites", err.Error())
+		return
+	}
+
 	resp.State.Set(ctx, model)
 }
 
@@ -181,11 +188,42 @@ func (r *originRulesRewriteConfigResource) Update(ctx context.Context, req resou
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	err := r.updateConfig(plan)
+
+	var state *originRulesRewriteConfigModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// CDNetworks's way to perform a delete on a single origin_rewrite_rule
+	// is to pass in only the dataId of the rule that has been marked for deletion.
+
+	// Extract the dataIds of the origin_rewrite_rules that have been deleted.
+	// Do this by subtracting the plan dataIds from the state dataIds.
+	// The remainder of the subtraction is marked as deleted.
+	planDataIds := mapset.NewSet[int64]()
+	stateDataIds := mapset.NewSet[int64]()
+
+	for _, rule := range plan.OriginRulesRewrite {
+		planDataIds.Add(rule.DataId.ValueInt64())
+	}
+	for _, rule := range state.OriginRulesRewrite {
+		stateDataIds.Add(rule.DataId.ValueInt64())
+	}
+
+	deletedDataIds := stateDataIds.Difference(planDataIds)
+	err := r.updateConfig(plan, deletedDataIds.ToSlice())
 	if err != nil {
 		resp.Diagnostics.AddError("[API Error]Fail to update origin_rules_rewrites", err.Error())
 		return
 	}
+
+	err = r.updateModel(plan)
+	if err != nil {
+		resp.Diagnostics.AddError("[API Error]Fail to query origin_rules_rewrites", err.Error())
+		return
+	}
+
 	resp.State.Set(ctx, plan)
 }
 
@@ -197,7 +235,7 @@ func (r *originRulesRewriteConfigResource) Delete(ctx context.Context, req resou
 	}
 
 	model.OriginRulesRewrite = make([]*originRulesRewriteModel, 0)
-	err := r.updateConfig(model)
+	err := r.updateConfig(model, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to delete origin_rules_rewrite", err.Error())
 	}
@@ -207,11 +245,12 @@ func (r *originRulesRewriteConfigResource) ImportState(ctx context.Context, req 
 	resource.ImportStatePassthroughID(ctx, path.Root("domain_id"), req, resp)
 }
 
-func (r *originRulesRewriteConfigResource) updateConfig(model *originRulesRewriteConfigModel) error {
+func (r *originRulesRewriteConfigResource) updateConfig(model *originRulesRewriteConfigModel, deletedDataIds []int64) error {
 	rules := make([]*cdnetworksapi.OriginRulesRewrite, 0)
 	if model.OriginRulesRewrite != nil {
 		for _, rulesRewrite := range model.OriginRulesRewrite {
 			rule := &cdnetworksapi.OriginRulesRewrite{
+				DataId:                rulesRewrite.DataId.ValueInt64Pointer(),
 				PathPattern:           rulesRewrite.PathPattern.ValueStringPointer(),
 				PathPatternHttp:       rulesRewrite.PathPatternHttp.ValueStringPointer(),
 				ExceptPathPattern:     rulesRewrite.ExceptPathPattern.ValueStringPointer(),
@@ -231,7 +270,7 @@ func (r *originRulesRewriteConfigResource) updateConfig(model *originRulesRewrit
 		OriginRulesRewrites: rules,
 	}
 
-	_, err := r.client.UpdateOriginUriAndOriginHost(model.DomainId.ValueString(), updateOriginAndOriginHostRequest)
+	_, err := r.client.UpdateOriginUriAndOriginHost(model.DomainId.ValueString(), updateOriginAndOriginHostRequest, deletedDataIds)
 	if err != nil {
 		return err
 	}
@@ -244,9 +283,15 @@ func (r *originRulesRewriteConfigResource) updateModel(model *originRulesRewrite
 		return err
 	}
 
+	sort.Slice(originRulesRewritesConfigResponse.OriginRulesRewrites, func(i, j int) bool {
+		return *originRulesRewritesConfigResponse.OriginRulesRewrites[i].DataId <
+			*originRulesRewritesConfigResponse.OriginRulesRewrites[j].DataId
+	})
+
 	model.OriginRulesRewrite = make([]*originRulesRewriteModel, 0)
 	for _, ruleEntry := range originRulesRewritesConfigResponse.OriginRulesRewrites {
 		model.OriginRulesRewrite = append(model.OriginRulesRewrite, &originRulesRewriteModel{
+			DataId:                types.Int64PointerValue(ruleEntry.DataId),
 			PathPattern:           types.StringPointerValue(ruleEntry.PathPattern),
 			PathPatternHttp:       types.StringPointerValue(ruleEntry.PathPatternHttp),
 			ExceptPathPattern:     types.StringPointerValue(ruleEntry.ExceptPathPattern),
