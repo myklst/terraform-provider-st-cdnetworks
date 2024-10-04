@@ -152,11 +152,6 @@ func (r *originRulesRewriteConfigResource) Create(ctx context.Context, req resou
 		return
 	}
 
-	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR]Fail to set origin_rules_rewrites", err.Error())
-		return
-	}
-
 	err = r.updateModel(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API Error]Fail to query origin_rules_rewrites", err.Error())
