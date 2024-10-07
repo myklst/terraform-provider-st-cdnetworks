@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
@@ -70,7 +71,7 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"data_id": &schema.Int64Attribute{
-							Description: "Used by CDNetworks to keep track of the individual configuration",
+							Description: "Used by `CDNetworks` to keep track of the individual configuration.",
 							Optional:    true,
 							Computed:    true,
 							PlanModifiers: []planmodifier.Int64{
@@ -118,12 +119,28 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 							Required:    true,
 						},
 						"before_rewrite_uri": &schema.StringAttribute{
-							Description: "The original request URI. Supports regular expression.",
-							Optional:    true,
+							Description: strings.Join([]string{
+								"The original request URI. Supports regular expression.",
+								"Can be used to transparently cache and serve assets from a different path.",
+								"Defaults to `(.*)`, which means to match the entire uri string.",
+								"For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`,",
+								"`before_rewrite_uri` can be set to `images/(.*)`",
+							}, " "),
+							Optional: true,
+							Computed: true,
+							Default:  stringdefault.StaticString("(.*)"),
 						},
 						"after_rewrite_uri": &schema.StringAttribute{
-							Description: "The rewritten request URI. Supports regular expression.",
-							Optional:    true,
+							Description: strings.Join([]string{
+								"The rewritten request URI. Supports regular expression.",
+								"Can be used to transparently cache and serve assets from a different path.",
+								"Defaults to `$1`, which means to reuse the existing uri string .",
+								"For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`,",
+								"`after_rewrite_uri` can be set to `imgs/$1`",
+							}, " "),
+							Optional: true,
+							Computed: true,
+							Default:  stringdefault.StaticString("$1"),
 						},
 					},
 				},

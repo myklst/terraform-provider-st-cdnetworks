@@ -46,9 +46,9 @@ Required:
 
 Optional:
 
-- `after_rewrite_uri` (String) The rewritten request URI. Supports regular expression.
-- `before_rewrite_uri` (String) The original request URI. Supports regular expression.
-- `data_id` (Number) Used by CDNetworks to keep track of the individual configuration
+- `after_rewrite_uri` (String) The rewritten request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `$1`, which means to reuse the existing uri string . For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `after_rewrite_uri` can be set to `imgs/$1`
+- `before_rewrite_uri` (String) The original request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `(.*)`, which means to match the entire uri string. For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `before_rewrite_uri` can be set to `images/(.*)`
+- `data_id` (Number) Used by `CDNetworks` to keep track of the individual configuration.
 - `except_path_pattern` (String) Ignore url rewrite rules if paths match these patterns.
 - `except_path_pattern_http` (String) Whether to match only paths with HTTP or HTTPS protocol only. Default is blank, matches all paths regardless of protocol
 - `ignore_letter_case` (Boolean) Whether to match the letter casing
