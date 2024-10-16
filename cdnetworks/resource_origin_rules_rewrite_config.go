@@ -29,8 +29,8 @@ type originRulesRewriteModel struct {
 	OriginInfo            types.String `tfsdk:"origin_info"`
 	Priority              types.Int64  `tfsdk:"priority"`
 	OriginHost            types.String `tfsdk:"origin_host"`
-	BeforeRewriteUri      types.String `tfsdk:"before_rewrite_uri"`
-	AfterRewriteUri       types.String `tfsdk:"after_rewrite_uri"`
+	BeforeRewritedUri     types.String `tfsdk:"before_rewrited_uri"`
+	AfterRewritedUri      types.String `tfsdk:"after_rewrited_uri"`
 }
 
 type originRulesRewriteConfigModel struct {
@@ -115,28 +115,31 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 							Default:     int64default.StaticInt64(10),
 						},
 						"origin_host": &schema.StringAttribute{
-							Description: "The host/domain name to use when performing back to origin request.",
-							Required:    true,
+							Description: strings.Join([]string{
+								"The host/domain name to use when performing back to origin request.",
+								"Use this field to configure an alternate origin host for requests that match a specific path pattern.",
+							}, " "),
+							Required: true,
 						},
-						"before_rewrite_uri": &schema.StringAttribute{
+						"before_rewrited_uri": &schema.StringAttribute{
 							Description: strings.Join([]string{
 								"The original request URI. Supports regular expression.",
 								"Can be used to transparently cache and serve assets from a different path.",
 								"Defaults to `(.*)`, which means to match the entire uri string.",
 								"For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`,",
-								"`before_rewrite_uri` can be set to `images/(.*)`",
+								"`before_rewrited_uri` can be set to `images/(.*)`",
 							}, " "),
 							Optional: true,
 							Computed: true,
 							Default:  stringdefault.StaticString("(.*)"),
 						},
-						"after_rewrite_uri": &schema.StringAttribute{
+						"after_rewrited_uri": &schema.StringAttribute{
 							Description: strings.Join([]string{
 								"The rewritten request URI. Supports regular expression.",
 								"Can be used to transparently cache and serve assets from a different path.",
 								"Defaults to `$1`, which means to reuse the existing uri string .",
 								"For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`,",
-								"`after_rewrite_uri` can be set to `imgs/$1`",
+								"`after_rewrited_uri` can be set to `imgs/$1`",
 							}, " "),
 							Optional: true,
 							Computed: true,
@@ -207,10 +210,10 @@ func (r *originRulesRewriteConfigResource) Update(ctx context.Context, req resou
 		return
 	}
 
-	// CDNetworks's way to perform a delete on a single origin_rewrite_rule
+	// CDNetworks's way to perform a delete on a single origin_rewrited_rule
 	// is to pass in only the dataId of the rule that has been marked for deletion.
 
-	// Extract the dataIds of the origin_rewrite_rules that have been deleted.
+	// Extract the dataIds of the origin_rewrited_rules that have been deleted.
 	// Do this by subtracting the plan dataIds from the state dataIds.
 	// The remainder of the subtraction is marked as deleted.
 	planDataIds := mapset.NewSet[int64]()
@@ -271,8 +274,8 @@ func (r *originRulesRewriteConfigResource) updateConfig(model *originRulesRewrit
 				OriginInfo:            rulesRewrite.OriginInfo.ValueStringPointer(),
 				Priority:              rulesRewrite.Priority.ValueInt64Pointer(),
 				OriginHost:            rulesRewrite.OriginHost.ValueStringPointer(),
-				BeforeRewriteUri:      rulesRewrite.BeforeRewriteUri.ValueStringPointer(),
-				AfterRewriteUri:       rulesRewrite.AfterRewriteUri.ValueStringPointer(),
+				BeforeRewritedUri:     rulesRewrite.BeforeRewritedUri.ValueStringPointer(),
+				AfterRewritedUri:      rulesRewrite.AfterRewritedUri.ValueStringPointer(),
 			}
 			rules = append(rules, rule)
 		}
@@ -312,8 +315,8 @@ func (r *originRulesRewriteConfigResource) updateModel(model *originRulesRewrite
 			OriginInfo:            types.StringPointerValue(ruleEntry.OriginInfo),
 			Priority:              types.Int64PointerValue(ruleEntry.Priority),
 			OriginHost:            types.StringPointerValue(ruleEntry.OriginHost),
-			BeforeRewriteUri:      types.StringPointerValue(ruleEntry.BeforeRewriteUri),
-			AfterRewriteUri:       types.StringPointerValue(ruleEntry.AfterRewriteUri),
+			BeforeRewritedUri:     types.StringPointerValue(ruleEntry.BeforeRewritedUri),
+			AfterRewritedUri:      types.StringPointerValue(ruleEntry.AfterRewritedUri),
 		})
 	}
 

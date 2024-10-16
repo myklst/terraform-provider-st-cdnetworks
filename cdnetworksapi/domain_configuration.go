@@ -98,8 +98,8 @@ type OriginRulesRewrite struct {
 	OriginInfo            *string `json:"originInfo,omitempty" xml:"originInfo,omitempty"`
 	Priority              *int64  `json:"priority,omitempty" xml:"priority,omitempty"`
 	OriginHost            *string `json:"originHost,omitempty" xml:"originHost,omitempty"`
-	BeforeRewriteUri      *string `json:"beforeRewritedUri,omitempty" xml:"beforeRewritedUri,omitempty"` // Spelled as rewrite"d" in docs & api response
-	AfterRewriteUri       *string `json:"afterRewritedUri,omitempty" xml:"afterRewritedUri,omitempty"`   // Spelled as rewrite"d" in docs & api response
+	BeforeRewritedUri     *string `json:"beforeRewritedUri,omitempty" xml:"beforeRewritedUri,omitempty"` // Spelled as rewrite"d" in docs & api response
+	AfterRewritedUri      *string `json:"afterRewritedUri,omitempty" xml:"afterRewritedUri,omitempty"`   // Spelled as rewrite"d" in docs & api response
 }
 
 // QueryOriginUriAndOriginHost 查询回源uri和host改写
