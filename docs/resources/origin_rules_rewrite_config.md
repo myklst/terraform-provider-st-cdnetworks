@@ -40,14 +40,14 @@ resource "st-cdnetworks_origin_rules_rewrite_config" "test" {
 
 Required:
 
-- `origin_host` (String) The host/domain name to use when performing back to origin request.
+- `origin_host` (String) The host/domain name to use when performing back to origin request. Use this field to configure an alternate origin host for requests that match a specific path pattern.
 - `origin_info` (String) The information of the back to source. Can be IP or domain name.
 - `path_pattern` (String) Url matching mode supports regular expression. To match all paths, input can be .*
 
 Optional:
 
-- `after_rewrite_uri` (String) The rewritten request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `$1`, which means to reuse the existing uri string . For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `after_rewrite_uri` can be set to `imgs/$1`
-- `before_rewrite_uri` (String) The original request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `(.*)`, which means to match the entire uri string. For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `before_rewrite_uri` can be set to `images/(.*)`
+- `after_rewrited_uri` (String) The rewritten request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `$1`, which means to reuse the existing uri string . For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `after_rewrited_uri` can be set to `imgs/$1`
+- `before_rewrited_uri` (String) The original request URI. Supports regular expression. Can be used to transparently cache and serve assets from a different path. Defaults to `(.*)`, which means to match the entire uri string. For example, end users access `images/a.jpg` but the asset is at `imgs/a.jpg`, `before_rewrited_uri` can be set to `images/(.*)`
 - `data_id` (Number) Used by `CDNetworks` to keep track of the individual configuration.
 - `except_path_pattern` (String) Ignore url rewrite rules if paths match these patterns.
 - `except_path_pattern_http` (String) Whether to match only paths with HTTP or HTTPS protocol only. Default is blank, matches all paths regardless of protocol
