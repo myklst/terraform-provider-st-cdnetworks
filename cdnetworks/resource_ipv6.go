@@ -186,7 +186,7 @@ func (r *ipv6Resource) waitForIPv6Config(ctx context.Context, model ipv6Resource
 
 	s := backoff.NewExponentialBackOff()
 	s.InitialInterval = 10 * time.Second
-	s.MaxElapsedTime = 5 * time.Minute
+	s.MaxElapsedTime = 0 // set as infinite retries.
 
 	err := backoff.Retry(checkStatus, s)
 	return err == nil
