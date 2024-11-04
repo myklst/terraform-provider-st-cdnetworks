@@ -3,18 +3,18 @@
 page_title: "st-cdnetworks_ipv6_config Resource - st-cdnetworks"
 subcategory: ""
 description: |-
-  The resource control the IPv6 protocol for domain
+  Update DNS region IP version, available value: 'V6'
 ---
 
-# st-cdnetworks_ssl_certificate (Resource)
+# st-cdnetworks_ipv6_config (Resource)
 
-The resource control the IPv6 protocol for domain
+Update DNS region IP version, available value: 'V6'
 
 ## Example Usage
 
 ```terraform
 resource "st-cdnetworks_ipv6_config" "test" {
-  domain_id = "5048000"
+  domain_id   = "5048000"
   enable_ipv6 = true
 }
 ```
@@ -24,6 +24,5 @@ resource "st-cdnetworks_ipv6_config" "test" {
 
 ### Required
 
-- `domain_id` (String) Domain ID
-- `enable_ipv6` (Boolean) Enable IPv6.
-
+- `domain_id` (String) Domain id
+- `enable_ipv6` (Boolean) Ipv6

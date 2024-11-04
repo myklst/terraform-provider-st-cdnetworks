@@ -15,13 +15,13 @@ Http header configuration
 ```terraform
 resource "st-cdnetworks_http_header_config" "test" {
   domain_id = st-cdnetworks_shield_domain.test.domain_id
-  
+
   header_rule {
-    action = "add"
+    action           = "add"
     header_direction = "cache2origin"
-    header_name = "x-header-test"
-    header_value = "test"
-    path_pattern = "/*"
+    header_name      = "x-header-test"
+    header_value     = "test"
+    path_pattern     = "/*"
   }
 }
 ```

@@ -1,4 +1,4 @@
-resource "st-cdnetworks_shield_domain" "test" {
+resource "st-cdnetworks_content_acceleration_domain" "test" {
   domain             = "www.ccflood.com"
   comment            = "test terraform update"
   enabled            = true
@@ -8,6 +8,9 @@ resource "st-cdnetworks_shield_domain" "test" {
     origin_ips                 = ["2.2.3.2", "2.2.3.1"]
     default_origin_host_header = "b.abc.com"
   }
+  contract_id   = ""
+  item_id       = ""
+  control_group = {}
 }
 
 
