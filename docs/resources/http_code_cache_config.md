@@ -18,7 +18,7 @@ resource "st-cdnetworks_http_code_cache_config" "test" {
 
   http_code_cache_rule {
     http_codes = [401]
-    cache_ttl = 100
+    cache_ttl  = 100
   }
 }
 ```
