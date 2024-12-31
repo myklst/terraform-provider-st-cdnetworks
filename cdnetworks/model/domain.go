@@ -123,7 +123,7 @@ var DomainSchema = schema.Schema{
 		},
 		"control_group": &schema.SingleNestedAttribute{
 			Description: "Update the specific control group. Binding cdn domains to group represent that it belongs to specific account.",
-			Required:    true,
+			Optional:    true,
 			Attributes: map[string]schema.Attribute{
 				"code": schema.StringAttribute{
 					Description: `Control Group code.`,
@@ -156,9 +156,7 @@ var DomainSchema = schema.Schema{
 			Description: "Targeted domain host to share cache from specific CDN.",
 			Optional:    true,
 			Computed:    true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
+			Default:     stringdefault.StaticString(""),
 		},
 	},
 }
