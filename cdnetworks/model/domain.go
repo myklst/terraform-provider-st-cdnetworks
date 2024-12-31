@@ -156,9 +156,7 @@ var DomainSchema = schema.Schema{
 			Description: "Targeted domain host to share cache from specific CDN.",
 			Optional:    true,
 			Computed:    true,
-			PlanModifiers: []planmodifier.String{
-				stringplanmodifier.UseStateForUnknown(),
-			},
+			Default:     stringdefault.StaticString(""),
 		},
 	},
 }

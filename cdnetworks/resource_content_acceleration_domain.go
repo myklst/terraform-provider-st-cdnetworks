@@ -110,8 +110,6 @@ func (r *contentAccelerationDomainResource) Create(ctx context.Context, req reso
 			resp.Diagnostics.AddError("[API ERROR] Fail to Update Flood Shield Cache-host for Domain", err.Error())
 			return
 		}
-	} else {
-		model.CacheHost = types.StringValue("")
 	}
 
 	// Required as copying computedFields from queryResponse.
