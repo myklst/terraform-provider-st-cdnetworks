@@ -84,10 +84,12 @@ func (r *contentAccelerationDomainResource) Create(ctx context.Context, req reso
 	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
 
 	// Append newly added cdn domains to control_group, to bind to specific account.
-	err = common.BindCdnDomainToControlGroup(r.client, model)
-	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
-		return
+	if model.ControlGroup != nil {
+		err = common.BindCdnDomainToControlGroup(r.client, model)
+		if err != nil {
+			resp.Diagnostics.AddError("[API ERROR] Fail to Bind Control Group", err.Error())
+			return
+		}
 	}
 
 	err = utils.WaitForDomainDeployed(r.client, model.DomainId.ValueString())
@@ -108,6 +110,8 @@ func (r *contentAccelerationDomainResource) Create(ctx context.Context, req reso
 			resp.Diagnostics.AddError("[API ERROR] Fail to Update Flood Shield Cache-host for Domain", err.Error())
 			return
 		}
+	} else {
+		model.CacheHost = types.StringValue("")
 	}
 
 	// Required as copying computedFields from queryResponse.
@@ -140,12 +144,14 @@ func (r *contentAccelerationDomainResource) Read(ctx context.Context, req resour
 		if err != nil {
 			if cdnErr, ok := err.(*cdnetworksapi.ErrorResponse); ok {
 				if cdnErr.ResponseCode == "WRONG_OPERATOR" {
-					resp.Diagnostics.AddWarning("[Call API] Trying to bind Content Acceleration Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
-					// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
-					// Prevent error from Read(), Create() might failed to bind into controlGroup.
-					err = common.BindCdnDomainToControlGroup(r.client, model)
-					if err != nil {
-						return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
+					if model.ControlGroup != nil {
+						resp.Diagnostics.AddWarning("[Call API] Trying to bind Content Acceleration Domain to Control Group.", fmt.Sprintf("Domain: %s", model.Domain.ValueString()))
+						// Bind CDN domains to ControlGroup, in case previous bind action doesn't complete.
+						// Prevent error from Read(), Create() might failed to bind into controlGroup.
+						err = common.BindCdnDomainToControlGroup(r.client, model)
+						if err != nil {
+							return backoff.Permanent(fmt.Errorf("bind control group API error. err: %v", err))
+						}
 					}
 
 					// Retry for queryCdnDomain action
