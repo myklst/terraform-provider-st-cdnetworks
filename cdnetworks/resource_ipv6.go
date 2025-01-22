@@ -14,8 +14,8 @@ import (
 )
 
 type ipv6ResourceModel struct {
-	DomainId   types.String `tfsdk:"domain_id" json:"domain_id"`
-	EnableIpv6 types.Bool   `tfsdk:"enable_ipv6" json:"enable_ipv6"`
+	DomainId   types.String `tfsdk:"domain_id"`
+	EnableIpv6 types.Bool   `tfsdk:"enable_ipv6"`
 }
 
 type ipv6Resource struct {
@@ -84,7 +84,7 @@ func (r *ipv6Resource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	if r.waitForIPv6Config(ctx, model) {
+	if r.waitForIPv6Config(model) {
 		resp.State.Set(ctx, &model)
 	} else {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Add IPv6", "Timeout")
@@ -138,7 +138,7 @@ func (r *ipv6Resource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	if r.waitForIPv6Config(ctx, plan) {
+	if r.waitForIPv6Config(plan) {
 		state.DomainId = plan.DomainId
 		state.EnableIpv6 = plan.EnableIpv6
 		resp.State.Set(ctx, state)
@@ -170,7 +170,7 @@ func (r *ipv6Resource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 }
 
-func (r *ipv6Resource) waitForIPv6Config(ctx context.Context, model ipv6ResourceModel) bool {
+func (r *ipv6Resource) waitForIPv6Config(model ipv6ResourceModel) bool {
 	checkStatus := func() error {
 		queryIPv6Response, err := r.client.QueryIPv6Config(model.DomainId.ValueString())
 		if err != nil {
