@@ -14,7 +14,7 @@ type urlSignResourceModel struct {
 	DomainId   types.String `tfsdk:"domain_id"`
 	PrimaryKey types.String `tfsdk:"primary_key"`
 	BackupKey  types.String `tfsdk:"backup_key"`
-	CacheTtl   types.Int64  `tfsdk:"cache_ttl"`
+	Ttl        types.Int64  `tfsdk:"ttl"`
 }
 
 type urlSignResource struct {
@@ -52,8 +52,8 @@ func (r *urlSignResource) Schema(_ context.Context, req resource.SchemaRequest, 
 				Required:    true,
 				Sensitive:   true,
 			},
-			"cache_ttl": &schema.Int64Attribute{
-				Description: `Cache TTL of the URL Signature, in seconds.`,
+			"ttl": &schema.Int64Attribute{
+				Description: `TTL of the URL Signature, in seconds.`,
 				Required:    true,
 			},
 		},
@@ -97,7 +97,7 @@ func (r *urlSignResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	state.DomainId = types.StringValue(*queryURLSignResponse.DomainId)
-	state.CacheTtl = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.LowerLimitExpireTime)
+	state.Ttl = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.LowerLimitExpireTime)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -119,7 +119,7 @@ func (r *urlSignResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	state.DomainId = plan.DomainId
-	state.CacheTtl = plan.CacheTtl
+	state.Ttl = plan.Ttl
 	resp.State.Set(ctx, state)
 }
 
@@ -147,8 +147,8 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 			PathPattern:              types.StringValue("/*").ValueStringPointer(),
 			CipherCombination:        types.StringValue("$uri$ourkey$time$args{rand}$args{uid}").ValueStringPointer(),
 			CipherParam:              types.StringValue("auth_key").ValueStringPointer(),
-			LowerLimitExpireTime:     model.CacheTtl.ValueInt64Pointer(),
-			UpperLimitExpireTime:     model.CacheTtl.ValueInt64Pointer(),
+			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
+			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.BackupKey.ValueString()).ValueStringPointer(),
 			TimeFormat:               types.StringValue("7s").ValueStringPointer(),
 			RequestUrlStyle:          types.StringValue("http://$domain/$uri?$args&auth_key=$time-$args{rand}-$args{uid}-$key").ValueStringPointer(),
