@@ -11,10 +11,10 @@ import (
 )
 
 type urlSignResourceModel struct {
-	DomainId   types.String `tfsdk:"domain_id"`
-	PrimaryKey types.String `tfsdk:"primary_key"`
-	BackupKey  types.String `tfsdk:"backup_key"`
-	Ttl        types.Int64  `tfsdk:"ttl"`
+	DomainId     types.String `tfsdk:"domain_id"`
+	PrimaryKey   types.String `tfsdk:"primary_key"`
+	SecondaryKey types.String `tfsdk:"secondary_key"`
+	Ttl          types.Int64  `tfsdk:"ttl"`
 }
 
 type urlSignResource struct {
@@ -47,7 +47,7 @@ func (r *urlSignResource) Schema(_ context.Context, req resource.SchemaRequest, 
 				Required:    true,
 				Sensitive:   true,
 			},
-			"backup_key": &schema.StringAttribute{
+			"secondary_key": &schema.StringAttribute{
 				Description: "Backup key of the URL Signature.",
 				Required:    true,
 				Sensitive:   true,
@@ -149,7 +149,7 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 			CipherParam:              types.StringValue("auth_key").ValueStringPointer(),
 			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
-			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.BackupKey.ValueString()).ValueStringPointer(),
+			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
 			TimeFormat:               types.StringValue("7s").ValueStringPointer(),
 			RequestUrlStyle:          types.StringValue("http://$domain/$uri?$args&auth_key=$time-$args{rand}-$args{uid}-$key").ValueStringPointer(),
 			DstStyle:                 types.Int64Value(1).ValueInt64Pointer(),

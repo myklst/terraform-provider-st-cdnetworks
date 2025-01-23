@@ -14,10 +14,10 @@ The resource enable URL Signature for domain
 
 ```terraform
 resource "st-cdnetworks_url_sign" "test" {
-  domain_id   = "5048000"
-  primary_key = "abc123"
-  backup_key  = "def456"
-  ttl         = 120
+  domain_id     = "5048000"
+  primary_key   = "abc123"
+  secondary_key = "def456"
+  ttl           = 120
 }
 ```
 
@@ -29,5 +29,5 @@ resource "st-cdnetworks_url_sign" "test" {
 
 - `domain_id` (String) Domain id
 - `primary_key` (String) Primary Key
-- `backup_key` (String) Backup Key
+- `secondary_key` (String) Backup Key
 - `ttl` (Integer) ttl in seconds
