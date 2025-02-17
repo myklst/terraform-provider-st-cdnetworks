@@ -76,7 +76,7 @@ func (r *urlSignResource) Create(ctx context.Context, req resource.CreateRequest
 
 	err := r.updateUrlSign(model)
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Failed to Enable URL Sign", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Failed to Create URL Sign", err.Error())
 		return
 	}
 
@@ -136,7 +136,7 @@ func (r *urlSignResource) Delete(ctx context.Context, req resource.DeleteRequest
 	})
 
 	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR] Failed to Del URL Sign", err.Error())
+		resp.Diagnostics.AddError("[API ERROR] Failed to Delete URL Sign", err.Error())
 		return
 	}
 }
