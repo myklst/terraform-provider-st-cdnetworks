@@ -893,3 +893,62 @@ func (c *Client) UpdateApiDomain(domainId string, request UpdateApiDomainRequest
 	}, &response)
 	return
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// URL Signature
+////////////////////////////////////////////////////////////////////////////////
+
+// QueryURLSign 查询时间戳防盗链
+
+type TimestampVisitControlRule struct {
+	PathPattern              *string `json:"path-pattern,omitempty" xml:"path-pattern,omitempty"`
+	CipherCombination        *string `json:"cipher-combination,omitempty" xml:"cipher-combination,omitempty"`
+	CipherParam              *string `json:"cipher-param,omitempty" xml:"cipher-param,omitempty"`
+	LowerLimitExpireTime     *int64  `json:"lower-limit-expiry-time,omitempty" xml:"lower-limit-expiry-time,omitempty"`
+	UpperLimitExpireTime     *int64  `json:"upper-limit-expiry-time,omitempty" xml:"upper-limit-expiry-time,omitempty"`
+	MultipleSecretKey        *string `json:"multiple-secret-key,omitempty" xml:"multiple-secret-key,omitempty"`
+	TimeFormat               *string `json:"time-format,omitempty" xml:"time-format,omitempty"`
+	RequestUrlStyle          *string `json:"request-url-style,omitempty" xml:"request-url-style,omitempty"`
+	DstStyle                 *int64  `json:"dst-style,omitempty" xml:"dst-style,omitempty"`
+	EncryptMethod            *string `json:"encrypt-method,omitempty" xml:"encrypt-method,omitempty"`
+	LogFormat                *string `json:"log-format,omitempty" xml:"log-format,omitempty"`
+	IgnoreUriSlash           *string `json:"ignore-uri-slash,omitempty" xml:"ignore-uri-slash,omitempty"`
+	IgnoreKeyAndTimePosition *string `json:"ignore-key-and-time-position,omitempty" xml:"ignore-key-and-time-position,omitempty"`
+}
+
+type QueryURLSignResponse struct {
+	DomainId                  *string                    `json:"domain-id" xml:"domain-id"`
+	DomainName                *string                    `json:"domain-name" xml:"domain-name"`
+	TimestampVisitControlRule *TimestampVisitControlRule `json:"timestamp-visit-control-rule" xml:"timestamp-visit-control-rule"`
+}
+
+func (c *Client) QueryURLSign(domainId string) (response QueryURLSignResponse, err error) {
+	var baseResp *BaseResponse
+	baseResp, err = c.DoXmlApiRequest(Request{
+		Method: HttpGet,
+		Path:   "/api/config/timecontrol/" + domainId,
+	}, &response)
+	_ = baseResp
+	return
+}
+
+// UpdateURLSign 修改时间戳防盗链
+
+type UpdateURLSignRequest struct {
+	XMLName                   xml.Name                   `json:"-" xml:"domain"`
+	TimestampVisitControlRule *TimestampVisitControlRule `json:"timestamp-visit-control-rule,omitempty" xml:"timestamp-visit-control-rule,omitempty"`
+}
+
+type UpdateURLSignResponse struct {
+	Code    *string `json:"code" xml:"code"`
+	Message *string `json:"message" xml:"message"`
+}
+
+func (c *Client) UpdateURLSign(domainId string, request UpdateURLSignRequest) (response UpdateURLSignResponse, err error) {
+	_, err = c.DoXmlApiRequest(Request{
+		Method: HttpPut,
+		Path:   "/api/config/timecontrol/" + domainId,
+		Body:   request,
+	}, &response)
+	return
+}
