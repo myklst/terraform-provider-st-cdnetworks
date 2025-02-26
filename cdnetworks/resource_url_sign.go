@@ -147,6 +147,7 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 			PathPattern:              types.StringValue("/*").ValueStringPointer(),
 			CipherCombination:        types.StringValue("$uri$ourkey$time$args{rand}$args{uid}").ValueStringPointer(),
 			CipherParam:              types.StringValue("auth_key").ValueStringPointer(),
+			TimeParam:                types.StringValue("tname").ValueStringPointer(),
 			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
