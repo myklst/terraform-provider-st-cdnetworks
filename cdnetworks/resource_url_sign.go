@@ -2,6 +2,7 @@ package cdnetworks
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -11,10 +12,21 @@ import (
 )
 
 type urlSignResourceModel struct {
-	DomainId     types.String `tfsdk:"domain_id"`
-	PrimaryKey   types.String `tfsdk:"primary_key"`
-	SecondaryKey types.String `tfsdk:"secondary_key"`
-	Ttl          types.Int64  `tfsdk:"ttl"`
+	DomainId                 types.String `tfsdk:"domain_id"`
+	PrimaryKey               types.String `tfsdk:"primary_key"`
+	SecondaryKey             types.String `tfsdk:"secondary_key"`
+	Ttl                      types.Int64  `tfsdk:"ttl"`
+	PathPattern              types.String `tfsdk:"path_pattern"`
+	CipherCombination        types.String `tfsdk:"cipher_combination"`
+	CipherParam              types.String `tfsdk:"cipher_param"`
+	TimeParam                types.String `tfsdk:"time_param"`
+	TimeFormat               types.String `tfsdk:"time_format"`
+	RequestUrlStyle          types.String `tfsdk:"request_url_style"`
+	DstStyle                 types.Int64  `tfsdk:"dst_style"`
+	EncryptMethod            types.String `tfsdk:"encrypt_method"`
+	LogFormat                types.Bool   `tfsdk:"log_format"`
+	IgnoreUriSlash           types.Bool   `tfsdk:"ignore_uri_slash"`
+	IgnoreKeyAndTimePosition types.Bool   `tfsdk:"ignore_key_and_time_position"`
 }
 
 type urlSignResource struct {
@@ -39,7 +51,7 @@ func (r *urlSignResource) Schema(_ context.Context, req resource.SchemaRequest, 
 		Description: "The resource enable URL Signature for domain",
 		Attributes: map[string]schema.Attribute{
 			"domain_id": &schema.StringAttribute{
-				Description: "Domain id",
+				Description: "Domain id.",
 				Required:    true,
 			},
 			"primary_key": &schema.StringAttribute{
@@ -54,6 +66,50 @@ func (r *urlSignResource) Schema(_ context.Context, req resource.SchemaRequest, 
 			},
 			"ttl": &schema.Int64Attribute{
 				Description: `TTL of the URL Signature, in seconds.`,
+				Required:    true,
+			},
+			"path_pattern": &schema.StringAttribute{
+				Description: "URL matching mode, supports regular expressions. Timestamp anti-hotlink verification is performed on the matched URLs; unmatched URLs are rejected.",
+				Required:    true,
+			},
+			"cipher_combination": &schema.StringAttribute{
+				Description: "Anti-hotlink generation method, parameters involved in MD5 calculation and combination order.",
+				Required:    true,
+			},
+			"cipher_param": &schema.StringAttribute{
+				Description: "Parameter name of the anti-hotlink string.",
+				Required:    true,
+			},
+			"time_param": &schema.StringAttribute{
+				Description: "Parameter name of the time string.",
+				Required:    true,
+			},
+			"time_format": &schema.StringAttribute{
+				Description: "Anti-hotlink encryption string time format, multiple selections are allowed, separated by semicolons (;).",
+				Required:    true,
+			},
+			"request_url_style": &schema.StringAttribute{
+				Description: "Anti-hotlink request URL format.",
+				Required:    true,
+			},
+			"dst_style": &schema.Int64Attribute{
+				Description: "Anti-hotlink return method. Values: 1 (use unencrypted URL to return to the source), 2 (use the URL with encrypted string requested by the customer to return to the source).",
+				Required:    true,
+			},
+			"encrypt_method": &schema.StringAttribute{
+				Description: "Encryption algorithm. Currently supported parameters: md5sum.",
+				Required:    true,
+			},
+			"log_format": &schema.BoolAttribute{
+				Description: "Logging original url.",
+				Required:    true,
+			},
+			"ignore_uri_slash": &schema.BoolAttribute{
+				Description: "Remove / from $url in hotlink protection.",
+				Required:    true,
+			},
+			"ignore_key_and_time_position": &schema.BoolAttribute{
+				Description: "Key and time can be interchanged.",
 				Required:    true,
 			},
 		},
@@ -98,6 +154,18 @@ func (r *urlSignResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	state.DomainId = types.StringValue(*queryURLSignResponse.DomainId)
 	state.Ttl = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.LowerLimitExpireTime)
+	state.PathPattern = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.PathPattern)
+	state.CipherCombination = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.CipherCombination)
+	state.CipherParam = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.CipherParam)
+	state.TimeParam = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.TimeParam)
+	state.TimeFormat = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.TimeFormat)
+	state.RequestUrlStyle = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.RequestUrlStyle)
+	state.DstStyle = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.DstStyle)
+	state.EncryptMethod = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.EncryptMethod)
+	state.LogFormat = types.BoolValue(*queryURLSignResponse.TimestampVisitControlRule.LogFormat == "true")
+	state.IgnoreUriSlash = types.BoolValue(*queryURLSignResponse.TimestampVisitControlRule.IgnoreUriSlash == "true")
+	state.IgnoreKeyAndTimePosition = types.BoolValue(*queryURLSignResponse.TimestampVisitControlRule.IgnoreKeyAndTimePosition == "true")
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -120,6 +188,18 @@ func (r *urlSignResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	state.DomainId = plan.DomainId
 	state.Ttl = plan.Ttl
+	state.PathPattern = plan.PathPattern
+	state.CipherCombination = plan.CipherCombination
+	state.CipherParam = plan.CipherParam
+	state.TimeParam = plan.TimeParam
+	state.TimeFormat = plan.TimeFormat
+	state.RequestUrlStyle = plan.RequestUrlStyle
+	state.DstStyle = plan.DstStyle
+	state.EncryptMethod = plan.EncryptMethod
+	state.LogFormat = plan.LogFormat
+	state.IgnoreUriSlash = plan.IgnoreUriSlash
+	state.IgnoreKeyAndTimePosition = plan.IgnoreKeyAndTimePosition
+
 	resp.State.Set(ctx, state)
 }
 
@@ -144,20 +224,20 @@ func (r *urlSignResource) Delete(ctx context.Context, req resource.DeleteRequest
 func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 	updateUrlSignRequest := cdnetworksapi.UpdateURLSignRequest{
 		TimestampVisitControlRule: &cdnetworksapi.TimestampVisitControlRule{
-			PathPattern:              types.StringValue("/*").ValueStringPointer(),
-			CipherCombination:        types.StringValue("$uri$ourkey$time$args{rand}$args{uid}").ValueStringPointer(),
-			CipherParam:              types.StringValue("auth_key").ValueStringPointer(),
-			TimeParam:                types.StringValue("tname").ValueStringPointer(),
+			PathPattern:              model.PathPattern.ValueStringPointer(),
+			CipherCombination:        model.CipherCombination.ValueStringPointer(),
+			CipherParam:              model.CipherParam.ValueStringPointer(),
+			TimeParam:                model.TimeParam.ValueStringPointer(),
 			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
-			TimeFormat:               types.StringValue("7s").ValueStringPointer(),
-			RequestUrlStyle:          types.StringValue("http://$domain/$uri?$args&auth_key=$time-$args{rand}-$args{uid}-$key").ValueStringPointer(),
-			DstStyle:                 types.Int64Value(1).ValueInt64Pointer(),
-			EncryptMethod:            types.StringValue("md5sum").ValueStringPointer(),
-			LogFormat:                types.StringValue("false").ValueStringPointer(),
-			IgnoreUriSlash:           types.StringValue("false").ValueStringPointer(),
-			IgnoreKeyAndTimePosition: types.StringValue("false").ValueStringPointer(),
+			TimeFormat:               model.TimeFormat.ValueStringPointer(),
+			RequestUrlStyle:          model.RequestUrlStyle.ValueStringPointer(),
+			DstStyle:                 model.DstStyle.ValueInt64Pointer(),
+			EncryptMethod:            model.EncryptMethod.ValueStringPointer(),
+			LogFormat:                types.StringValue(strconv.FormatBool(*model.LogFormat.ValueBoolPointer())).ValueStringPointer(),
+			IgnoreUriSlash:           types.StringValue(strconv.FormatBool(*model.IgnoreUriSlash.ValueBoolPointer())).ValueStringPointer(),
+			IgnoreKeyAndTimePosition: types.StringValue(strconv.FormatBool(*model.IgnoreKeyAndTimePosition.ValueBoolPointer())).ValueStringPointer(),
 		},
 	}
 

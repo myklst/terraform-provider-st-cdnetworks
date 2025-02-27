@@ -14,10 +14,21 @@ The resource enable URL Signature for domain
 
 ```terraform
 resource "st-cdnetworks_url_sign" "test" {
-  domain_id     = "5048000"
-  primary_key   = "abc123"
-  secondary_key = "def456"
-  ttl           = 120
+  domain_id                    = "5048000"
+  primary_key                  = "abc123"
+  secondary_key                = "def456"
+  ttl                          = 120
+  path_pattern                 = ".*"
+  cipher_combination           = "$uri$ourkey$time$args{rand}$args{uid}"
+  cipher_param                 = "auth_key"
+  time_param                   = "tname"
+  time_format                  = "7s"
+  request_url_style            = "https://$domain/Suri?$args&tname=$time&auth_key=$key"
+  dst_style                    = 1
+  encrypt_method               = "md5sum"
+  log_format                   = false
+  ignore_uri_slash             = false
+  ignore_key_and_time_position = false
 }
 ```
 
@@ -26,7 +37,18 @@ resource "st-cdnetworks_url_sign" "test" {
 
 ### Required
 
-- `domain_id` (String) Domain id
+- `cipher_combination` (String) Anti-hotlink generation method, parameters involved in MD5 calculation and combination order.
+- `cipher_param` (String) Parameter name of the anti-hotlink string.
+- `domain_id` (String) Domain id.
+- `dst_style` (Number) Anti-hotlink return method. Values: 1 (use unencrypted URL to return to the source), 2 (use the URL with encrypted string requested by the customer to return to the source).
+- `encrypt_method` (String) Encryption algorithm. Currently supported parameters: md5sum.
+- `ignore_key_and_time_position` (Boolean) Key and time can be interchanged.
+- `ignore_uri_slash` (Boolean) Remove / from $url in hotlink protection.
+- `log_format` (Boolean) Logging original url.
+- `path_pattern` (String) URL matching mode, supports regular expressions. Timestamp anti-hotlink verification is performed on the matched URLs; unmatched URLs are rejected.
 - `primary_key` (String, Sensitive) Primary key of the URL Signature.
+- `request_url_style` (String) Anti-hotlink request URL format.
 - `secondary_key` (String, Sensitive) Backup key of the URL Signature.
+- `time_format` (String) Anti-hotlink encryption string time format, multiple selections are allowed, separated by semicolons (;).
+- `time_param` (String) Parameter name of the time string.
 - `ttl` (Number) TTL of the URL Signature, in seconds.
