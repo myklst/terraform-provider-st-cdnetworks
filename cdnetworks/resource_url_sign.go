@@ -230,7 +230,7 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 			TimeParam:                model.TimeParam.ValueStringPointer(),
 			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
 			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
-			MultipleSecretKey:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
+			MultipleSecretKeys:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
 			TimeFormat:               model.TimeFormat.ValueStringPointer(),
 			RequestUrlStyle:          model.RequestUrlStyle.ValueStringPointer(),
 			DstStyle:                 model.DstStyle.ValueInt64Pointer(),
