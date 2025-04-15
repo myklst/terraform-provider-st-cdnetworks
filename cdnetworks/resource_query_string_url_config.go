@@ -397,8 +397,8 @@ func (setting *queryStringSettingModel) check() error {
 		(!setting.SourceKeyRemoved.IsNull() && !setting.SourceKeyRemoved.IsUnknown()) {
 		return errors.New("source_key_kept and ignore_query_string are mutually exclusive, and only one of them has a value.")
 	}
-	if (!setting.IgnoreQueryString.IsNull() && !setting.IgnoreQueryString.IsUnknown()) &&
-		(!setting.SourceWithQuery.IsNull()) && !setting.SourceWithQuery.IsUnknown() {
+	if (!setting.IgnoreQueryString.IsNull() && !setting.IgnoreQueryString.IsUnknown() && !setting.IgnoreQueryString.ValueBool()) &&
+		(!setting.SourceWithQuery.IsNull() && !setting.SourceWithQuery.IsUnknown()) {
 		return errors.New("When ignore_query_string is false, source_with_query should be empty.")
 	}
 
