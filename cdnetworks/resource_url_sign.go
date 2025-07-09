@@ -15,7 +15,8 @@ type urlSignResourceModel struct {
 	DomainId                 types.String `tfsdk:"domain_id"`
 	PrimaryKey               types.String `tfsdk:"primary_key"`
 	SecondaryKey             types.String `tfsdk:"secondary_key"`
-	Ttl                      types.Int64  `tfsdk:"ttl"`
+	LowerLimitExpiryTime     types.Int64  `tfsdk:"lower_limit_expiry_time"`
+	UpperLimitExpiryTime     types.Int64  `tfsdk:"upper_limit_expiry_time"`
 	PathPattern              types.String `tfsdk:"path_pattern"`
 	CipherCombination        types.String `tfsdk:"cipher_combination"`
 	CipherParam              types.String `tfsdk:"cipher_param"`
@@ -64,8 +65,12 @@ func (r *urlSignResource) Schema(_ context.Context, req resource.SchemaRequest, 
 				Required:    true,
 				Sensitive:   true,
 			},
-			"ttl": &schema.Int64Attribute{
-				Description: `TTL of the URL Signature, in seconds.`,
+			"lower_limit_expiry_time": &schema.Int64Attribute{
+				Description: `Validity of the URL Signature before the timestamp, in seconds.`,
+				Required:    true,
+			},
+			"upper_limit_expiry_time": &schema.Int64Attribute{
+				Description: `Validity of the URL Signature after the timestamp, also known as TTL, in seconds.`,
 				Required:    true,
 			},
 			"path_pattern": &schema.StringAttribute{
@@ -153,7 +158,8 @@ func (r *urlSignResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	state.DomainId = types.StringValue(*queryURLSignResponse.DomainId)
-	state.Ttl = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.LowerLimitExpireTime)
+	state.LowerLimitExpiryTime = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.LowerLimitExpiryTime)
+	state.UpperLimitExpiryTime = types.Int64Value(*queryURLSignResponse.TimestampVisitControlRule.UpperLimitExpiryTime)
 	state.PathPattern = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.PathPattern)
 	state.CipherCombination = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.CipherCombination)
 	state.CipherParam = types.StringValue(*queryURLSignResponse.TimestampVisitControlRule.CipherParam)
@@ -187,7 +193,8 @@ func (r *urlSignResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	state.DomainId = plan.DomainId
-	state.Ttl = plan.Ttl
+	state.LowerLimitExpiryTime = plan.LowerLimitExpiryTime
+	state.UpperLimitExpiryTime = plan.UpperLimitExpiryTime
 	state.PathPattern = plan.PathPattern
 	state.CipherCombination = plan.CipherCombination
 	state.CipherParam = plan.CipherParam
@@ -228,9 +235,9 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 			CipherCombination:        model.CipherCombination.ValueStringPointer(),
 			CipherParam:              model.CipherParam.ValueStringPointer(),
 			TimeParam:                model.TimeParam.ValueStringPointer(),
-			LowerLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
-			UpperLimitExpireTime:     model.Ttl.ValueInt64Pointer(),
-			MultipleSecretKeys:        types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
+			LowerLimitExpiryTime:     model.LowerLimitExpiryTime.ValueInt64Pointer(),
+			UpperLimitExpiryTime:     model.UpperLimitExpiryTime.ValueInt64Pointer(),
+			MultipleSecretKeys:       types.StringValue(model.PrimaryKey.ValueString() + ";" + model.SecondaryKey.ValueString()).ValueStringPointer(),
 			TimeFormat:               model.TimeFormat.ValueStringPointer(),
 			RequestUrlStyle:          model.RequestUrlStyle.ValueStringPointer(),
 			DstStyle:                 model.DstStyle.ValueInt64Pointer(),
