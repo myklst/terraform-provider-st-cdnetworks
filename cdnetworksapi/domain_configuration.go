@@ -905,8 +905,8 @@ type TimestampVisitControlRule struct {
 	CipherCombination        *string `json:"cipher-combination,omitempty" xml:"cipher-combination,omitempty"`
 	CipherParam              *string `json:"cipher-param,omitempty" xml:"cipher-param,omitempty"`
 	TimeParam                *string `json:"time-param,omitempty" xml:"time-param,omitempty"`
-	LowerLimitExpireTime     *int64  `json:"lower-limit-expiry-time,omitempty" xml:"lower-limit-expiry-time,omitempty"`
-	UpperLimitExpireTime     *int64  `json:"upper-limit-expiry-time,omitempty" xml:"upper-limit-expiry-time,omitempty"`
+	LowerLimitExpiryTime     *int64  `json:"lower-limit-expiry-time,omitempty" xml:"lower-limit-expiry-time,omitempty"`
+	UpperLimitExpiryTime     *int64  `json:"upper-limit-expiry-time,omitempty" xml:"upper-limit-expiry-time,omitempty"`
 	MultipleSecretKeys       *string `json:"multiple-secret-keys,omitempty" xml:"multiple-secret-keys,omitempty"`
 	TimeFormat               *string `json:"time-format,omitempty" xml:"time-format,omitempty"`
 	RequestUrlStyle          *string `json:"request-url-style,omitempty" xml:"request-url-style,omitempty"`
