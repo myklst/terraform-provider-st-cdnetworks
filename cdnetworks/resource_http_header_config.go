@@ -19,6 +19,7 @@ import (
 )
 
 type headerRuleModel struct {
+	DataId            types.Int64  `tfsdk:"data_id"`
 	PathPattern       types.String `tfsdk:"path_pattern"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
 	CustomPattern     types.String `tfsdk:"custom_pattern"`
@@ -33,6 +34,7 @@ type headerRuleModel struct {
 	HeaderValue       types.String `tfsdk:"header_value"`
 	RequestMethod     types.String `tfsdk:"request_method"`
 	RequestHeader     types.String `tfsdk:"request_header"`
+	Override          types.Bool   `tfsdk:"override"`
 }
 
 type httpHeaderConfigModel struct {
@@ -73,6 +75,10 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 				Description: "Header rule",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
+						"data_id": &schema.Int64Attribute{
+							Description: "Used to keep track of vendor-added header rules. Prevents vendor-added rules from being overwritten.",
+							Optional:    true,
+						},
 						"except_path_pattern": &schema.StringAttribute{
 							Description: "Exception url matching pattern, support regular. Example:",
 							Optional:    true,
@@ -198,6 +204,10 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 							Description: "Match request header, header values support regular, header and header values separated by Spaces, e.g. : Range bytes=[0-9]{9,}",
 							Optional:    true,
 						},
+						"override": &schema.BoolAttribute{
+							Description: "If set to true, creates a new header or overwrite the existing header value. If set to false, appends a new header. Only applies to these two directions, cache2origin and cache2visitor.",
+							Optional:    true,
+						},
 					},
 				},
 			},
@@ -219,7 +229,13 @@ func (r *httpHeaderConfigResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	err := r.updateConfig(model)
+	err := r.updateModel(model)
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
+		return
+	}
+
+	err = r.updateConfig(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to update http header", err.Error())
 	}
@@ -248,7 +264,14 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	err := r.updateConfig(plan)
+
+	err := r.updateModel(plan)
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
+		return
+	}
+
+	err = r.updateConfig(plan)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to update http header config", err.Error())
 		return
@@ -353,6 +376,7 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 	if queryHttpConfigResponse.HeaderModifyRules != nil {
 		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
 			ruleModel := &headerRuleModel{
+				DataId:            types.Int64PointerValue(rule.DataId),
 				ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
 				CustomPattern:     types.StringPointerValue(rule.CustomPattern),
 				FileType:          types.StringPointerValue(rule.FileType),
@@ -367,6 +391,7 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 				HeaderName:        types.StringPointerValue(rule.HeaderName),
 				HeaderValue:       types.StringPointerValue(rule.HeaderValue),
 				RequestHeader:     types.StringPointerValue(rule.RequestHeader),
+				Override:          types.BoolPointerValue(rule.Override),
 			}
 			model.Rules = append(model.Rules, ruleModel)
 		}
@@ -454,7 +479,6 @@ func (rule *headerRuleModel) check() error {
 		}
 	}
 	return nil
-
 }
 
 func (rule *headerRuleModel) String() string {
