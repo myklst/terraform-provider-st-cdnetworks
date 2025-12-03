@@ -349,7 +349,7 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	// Split the import request on comma
 	// The first string is the domain id
 	// Second string onwards are the names of the headers to be imported
-    idParts := strings.Split(req.ID, ",")
+	idParts := strings.Split(req.ID, ",")
 
 	rules := []*headerRuleModel{}
 	for _, name := range idParts[1:] {
@@ -360,7 +360,7 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 
 	model := &httpHeaderConfigModel{
 		DomainId: types.StringValue(idParts[0]),
-		Rules: rules,
+		Rules:    rules,
 	}
 
 	err := r.readModel(model)
