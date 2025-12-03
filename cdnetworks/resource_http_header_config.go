@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -18,6 +17,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworksapi"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 type headerRuleModel struct {
@@ -299,13 +300,16 @@ func (r *httpHeaderConfigResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	err := r.deleteModel(model)
-	if err != nil {
-		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
-		return
+	// During deletion, only the data-id needs to be passed in.
+	deletedRules := []*headerRuleModel{}
+	for _, rule := range model.Rules {
+		deletedRules = append(deletedRules, &headerRuleModel{
+			DataId: rule.DataId,
+		})
 	}
+	model.Rules = deletedRules
 
-	err = r.updateConfig(model)
+	err := r.updateConfig(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to delete http head configs", err.Error())
 	}
@@ -342,7 +346,30 @@ func (r *httpHeaderConfigResource) ModifyPlan(ctx context.Context, req resource.
 }
 
 func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("domain_id"), req, resp)
+	// Split the import request on comma
+	// The first string is the domain id
+	// Second string onwards are the names of the headers to be imported
+    idParts := strings.Split(req.ID, ",")
+
+	rules := []*headerRuleModel{}
+	for _, name := range idParts[1:] {
+		rules = append(rules, &headerRuleModel{
+			HeaderName: types.StringValue(name),
+		})
+	}
+
+	model := &httpHeaderConfigModel{
+		DomainId: types.StringValue(idParts[0]),
+		Rules: rules,
+	}
+
+	err := r.readModel(model)
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
+		return
+	}
+
+	resp.State.Set(ctx, model)
 }
 
 func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel) error {
@@ -463,24 +490,8 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 	return nil
 }
 
-// For each header present in the plan, remove all fields except the data-id.
-func (r *httpHeaderConfigResource) deleteModel(model *httpHeaderConfigModel) error {
-	deletedRules := []*headerRuleModel{}
-
-	// During deletion, only the data-id needs to be passed in.
-	for _, rule := range model.Rules {
-		deletedRules = append(deletedRules, &headerRuleModel{
-			DataId: rule.DataId,
-		})
-	}
-
-	model.Rules = deletedRules
-
-	return nil
-}
-
 // Reads and returns the latest header configurations.
-// Only headers that are present in the plan wil be returned
+// Only headers that are present in the plan will be returned
 func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error {
 	queryHttpConfigResponse, err := r.client.QueryHttpConfig(model.DomainId.ValueString())
 	if err != nil {
@@ -513,6 +524,21 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 					})
 				}
 			}
+		}
+
+		if len(model.Rules) != len(rules) {
+			importReq := mapset.NewSet[string]()
+			for _, rule := range model.Rules {
+				importReq.Add(rule.HeaderName.ValueString())
+			}
+
+			existingHeaders := mapset.NewSet[string]()
+			for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
+				existingHeaders.Add(*rule.HeaderName)
+			}
+
+			unimportedHeaders := importReq.Difference(existingHeaders)
+			return fmt.Errorf("headers not found: %s ", strings.Join(unimportedHeaders.ToSlice(), ","))
 		}
 
 		model.Rules = rules
