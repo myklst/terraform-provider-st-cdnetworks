@@ -439,7 +439,7 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
 			// Headers that will generate conflicts can be ignored
 			// meaning they dont have to be passed during the PUT request
-			if *rule.HeaderName == "Server" {
+			if *rule.HeaderName == "Server" || *rule.HeaderName == "Ws-Hdr" {
 				continue
 			}
 
