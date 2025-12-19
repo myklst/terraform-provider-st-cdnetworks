@@ -558,12 +558,25 @@ func (r *httpHeaderConfigResource) readHeaderDataID(model *httpHeaderConfigModel
 	}
 
 	if queryHttpConfigResponse.HeaderModifyRules != nil {
+		dataIds := map[string]int64{}
+
+		// Add the header name and its dataID (obtained from API call) into a map
 		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
-			for _, modelRule := range model.Rules {
-				if *rule.HeaderName == modelRule.HeaderName.ValueString() {
-					modelRule.DataId = types.Int64Value(*rule.DataId)
-				}
+			dataIds[*rule.HeaderName] = *rule.DataId
+		}
+
+		// Iterate over each model in the plan
+		for _, rule := range model.Rules {
+			// Find the data dataID using the header name
+			dataID := dataIds[rule.HeaderName.ValueString()]
+
+			// dataID is zero means that the header was not found
+			// in the resporse from the API call
+			if dataID == 0 {
+				return fmt.Errorf("header not found for: %s", rule.HeaderName.ValueString())
 			}
+
+			rule.DataId = types.Int64Value(dataIds[rule.HeaderName.ValueString()])
 		}
 	}
 
