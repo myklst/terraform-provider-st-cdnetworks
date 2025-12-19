@@ -375,13 +375,13 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 		return
 	}
 
-	imported := mapset.NewSet[string]()
+	matchedHeaders := mapset.NewSet[string]()
 	for _, rule := range model.Rules {
-		imported.Add(rule.HeaderName.ValueString())
+		matchedHeaders.Add(rule.HeaderName.ValueString())
 	}
 
-	if len(importReq.ToSlice()) != len(imported.ToSlice()) {
-		unimportedHeaders := importReq.Difference(imported)
+	if len(importReq.ToSlice()) != len(matchedHeaders.ToSlice()) {
+		unimportedHeaders := importReq.Difference(matchedHeaders)
 		resp.Diagnostics.AddError("Cannot import headers", fmt.Sprintf("The following headers not found: %s ", strings.Join(unimportedHeaders.ToSlice(), ",")))
 		return
 	}
