@@ -351,10 +351,16 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	// Second string onwards are the names of the headers to be imported
 	idParts := strings.Split(req.ID, ",")
 
-	rules := []*headerRuleModel{}
+	// Add the requested header names into a set, to remove duplicates
+	importReq := mapset.NewSet[string]()
 	for _, name := range idParts[1:] {
+		importReq.Add(name)
+	}
+
+	rules := []*headerRuleModel{}
+	for _, req := range importReq.ToSlice() {
 		rules = append(rules, &headerRuleModel{
-			HeaderName: types.StringValue(name),
+			HeaderName: types.StringValue(req),
 		})
 	}
 
@@ -367,6 +373,16 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
 		return
+	}
+
+	imported := mapset.NewSet[string]()
+	for _, rule := range model.Rules {
+		imported.Add(rule.HeaderName.ValueString())
+	}
+
+	if len(importReq.ToSlice()) != len(imported.ToSlice()) {
+		unimportedHeaders := importReq.Difference(imported)
+		resp.Diagnostics.AddError("Cannot import headers", fmt.Sprintf("The following headers not found: %s ", strings.Join(unimportedHeaders.ToSlice(), ",")))
 	}
 
 	resp.State.Set(ctx, model)
@@ -501,44 +517,32 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 	rules := []*headerRuleModel{}
 
 	if queryHttpConfigResponse.HeaderModifyRules != nil {
-		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
-			for _, modelRule := range model.Rules {
-				if *rule.HeaderName == modelRule.HeaderName.ValueString() {
-					rules = append(rules, &headerRuleModel{
-						DataId:            types.Int64PointerValue(rule.DataId),
-						ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
-						CustomPattern:     types.StringPointerValue(rule.CustomPattern),
-						FileType:          types.StringPointerValue(rule.FileType),
-						CustomFileType:    types.StringPointerValue(rule.CustomFileType),
-						Directory:         types.StringPointerValue(rule.Directory),
-						SpecifyUrl:        types.StringPointerValue(rule.SpecifyUrl),
-						RequestMethod:     types.StringPointerValue(rule.RequestMethod),
-						PathPattern:       types.StringPointerValue(rule.PathPattern),
-						HeaderDirection:   types.StringPointerValue(rule.HeaderDirection),
-						Action:            types.StringPointerValue(rule.Action),
-						AllowRegexp:       types.BoolPointerValue(rule.AllowRegexp),
-						HeaderName:        types.StringPointerValue(rule.HeaderName),
-						HeaderValue:       types.StringPointerValue(rule.HeaderValue),
-						RequestHeader:     types.StringPointerValue(rule.RequestHeader),
-						Override:          types.BoolPointerValue(rule.Override),
-					})
-				}
-			}
+		state := mapset.NewSet[string]()
+		for _, rule := range model.Rules {
+			state.Add(rule.HeaderName.ValueString())
 		}
 
-		if len(model.Rules) != len(rules) {
-			importReq := mapset.NewSet[string]()
-			for _, rule := range model.Rules {
-				importReq.Add(rule.HeaderName.ValueString())
+		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
+			if state.ContainsOne(*rule.HeaderName) {
+				rules = append(rules, &headerRuleModel{
+					DataId:            types.Int64PointerValue(rule.DataId),
+					ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
+					CustomPattern:     types.StringPointerValue(rule.CustomPattern),
+					FileType:          types.StringPointerValue(rule.FileType),
+					CustomFileType:    types.StringPointerValue(rule.CustomFileType),
+					Directory:         types.StringPointerValue(rule.Directory),
+					SpecifyUrl:        types.StringPointerValue(rule.SpecifyUrl),
+					RequestMethod:     types.StringPointerValue(rule.RequestMethod),
+					PathPattern:       types.StringPointerValue(rule.PathPattern),
+					HeaderDirection:   types.StringPointerValue(rule.HeaderDirection),
+					Action:            types.StringPointerValue(rule.Action),
+					AllowRegexp:       types.BoolPointerValue(rule.AllowRegexp),
+					HeaderName:        types.StringPointerValue(rule.HeaderName),
+					HeaderValue:       types.StringPointerValue(rule.HeaderValue),
+					RequestHeader:     types.StringPointerValue(rule.RequestHeader),
+					Override:          types.BoolPointerValue(rule.Override),
+				})
 			}
-
-			existingHeaders := mapset.NewSet[string]()
-			for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
-				existingHeaders.Add(*rule.HeaderName)
-			}
-
-			unimportedHeaders := importReq.Difference(existingHeaders)
-			return fmt.Errorf("headers not found: %s ", strings.Join(unimportedHeaders.ToSlice(), ","))
 		}
 
 		model.Rules = rules
