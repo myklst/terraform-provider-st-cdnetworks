@@ -383,6 +383,7 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	if len(importReq.ToSlice()) != len(imported.ToSlice()) {
 		unimportedHeaders := importReq.Difference(imported)
 		resp.Diagnostics.AddError("Cannot import headers", fmt.Sprintf("The following headers not found: %s ", strings.Join(unimportedHeaders.ToSlice(), ",")))
+		return
 	}
 
 	resp.State.Set(ctx, model)
