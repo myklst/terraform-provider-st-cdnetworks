@@ -435,6 +435,7 @@ type HeaderModifyRule struct {
 	AllowRegexp       *bool   `json:"allow-regexp,omitempty" xml:"allow-regexp,omitempty"`
 	HeaderName        *string `json:"header-name,omitempty" xml:"header-name,omitempty"`
 	HeaderValue       *string `json:"header-value,omitempty" xml:"header-value,omitempty"`
+	Override          *bool   `json:"override,omitempty" xml:"override,omitempty"`
 }
 
 // QueryHttpConfig 查询http头配置接口
