@@ -609,7 +609,14 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 
 	// Iterate over each model in the plan
 	for _, rule := range model.Rules {
-		hash, err := hashstructure.Hash(toHeaderRuleHTTPModel(*rule), nil)
+		if rule.Priority.IsNull() {
+			rule.Priority = basetypes.NewInt64Value(10)
+		}
+		if rule.Override.IsNull() {
+			rule.Override = basetypes.NewBoolValue(false)
+		}
+		tmpRule := toHeaderRuleHTTPModel(*rule)
+		hash, err := hashstructure.Hash(tmpRule, nil)
 		if err != nil {
 			return err
 		}
