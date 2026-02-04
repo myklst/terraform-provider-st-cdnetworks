@@ -329,7 +329,20 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 	// Deletion of headers might occur as a part of the update phase.
 	// Find the headers that are present in the state but not in the plan
 	deletedHeaders := headersInState.Difference(headersInPlan)
-	err := r.updateConfig(plan, deletedHeaders.ToSlice())
+	deletedIds := []int64{}
+	for hash, dataID := range state.HeaderIds.Elements() {
+		hashInt64, _ := strconv.ParseInt(hash, 10, 64)
+		if deletedHeaders.Contains(hashInt64) {
+			dataIDInteger, ok := dataID.(basetypes.Int64Value)
+			if !ok {
+				resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected types.Int64, got %T", dataID))
+				return
+			}
+			deletedIds = append(deletedIds, dataIDInteger.ValueInt64())
+		}
+	}
+
+	err := r.updateConfig(plan, deletedIds)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to update http header config", err.Error())
 		return
@@ -364,7 +377,7 @@ func (r *httpHeaderConfigResource) Delete(ctx context.Context, req resource.Dele
 	// During deletion, only the data-id needs to be passed in.
 	deletedRules := []int64{}
 	for _, dataID := range model.HeaderIds.Elements() {
-		dataIDInteger, ok := dataID.(types.Int64)
+		dataIDInteger, ok := dataID.(basetypes.Int64Value)
 		if !ok {
 			resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected types.Int64, got %T", dataID))
 			return
@@ -460,7 +473,7 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 
 			attr := elems[strconv.FormatUint(hash, 10)]
 			if attr != nil {
-				dataIDInteger, ok := attr.(types.Int64)
+				dataIDInteger, ok := attr.(basetypes.Int64Value)
 				if !ok {
 					return fmt.Errorf("expected types.Int64, got %T", dataIDInteger)
 				}
@@ -472,13 +485,8 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 	}
 
 	for _, dataID := range deletedHeaders {
-		attr := elems[strconv.Itoa(int(dataID))]
-		dataIDInteger, ok := attr.(types.Int64)
-		if !ok {
-			return fmt.Errorf("expected types.Int64, got %T", dataIDInteger)
-		}
 		rule := &cdnetworksapi.HeaderModifyRule{
-			DataId: dataIDInteger.ValueInt64Pointer(),
+			DataId: &dataID,
 		}
 
 		rules = append(rules, rule)
