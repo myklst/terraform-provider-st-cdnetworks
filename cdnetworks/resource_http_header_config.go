@@ -7,12 +7,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/myklst/terraform-provider-st-cdnetworks/cdnetworks/utils"
@@ -22,10 +20,8 @@ import (
 )
 
 type headerRuleModel struct {
-	DataId            types.Int64  `tfsdk:"data_id"`
 	PathPattern       types.String `tfsdk:"path_pattern"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
-	CustomPattern     types.String `tfsdk:"custom_pattern"`
 	SpecifyUrl        types.String `tfsdk:"specify_url_pattern"`
 	FileType          types.String `tfsdk:"file_type"`
 	CustomFileType    types.String `tfsdk:"custom_file_type"`
@@ -41,8 +37,9 @@ type headerRuleModel struct {
 }
 
 type httpHeaderConfigModel struct {
-	DomainId types.String       `tfsdk:"domain_id"`
-	Rules    []*headerRuleModel `tfsdk:"header_rule"`
+	DomainId  types.String       `tfsdk:"domain_id"`
+	HeaderIds types.Map          `tfsdk:"header_ids"`
+	Rules     []*headerRuleModel `tfsdk:"header_rule"`
 }
 
 type httpHeaderConfigResource struct {
@@ -72,33 +69,21 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 				Description: "Domain ID",
 				Required:    true,
 			},
+			"header_ids": &schema.MapAttribute{
+				ElementType: types.Int64Type,
+				Optional:    false,
+				Required:    false,
+				Computed:    true,
+			},
 		},
 		Blocks: map[string]schema.Block{
-			"header_rule": &schema.ListNestedBlock{
+			"header_rule": &schema.SetNestedBlock{
 				Description: "Header rule",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
-						"data_id": &schema.Int64Attribute{
-							Description: "Used to keep track of vendor-added header rules. Prevents vendor-added rules from being overwritten.",
-							Optional:    true,
-							Required:    false,
-							Computed:    true,
-							PlanModifiers: []planmodifier.Int64{
-								int64planmodifier.UseStateForUnknown(),
-							},
-						},
 						"except_path_pattern": &schema.StringAttribute{
 							Description: "Exception url matching pattern, support regular. Example:",
 							Optional:    true,
-						},
-						"custom_pattern": &schema.StringAttribute{
-							Description: "Matching conditions: specify common types, optional values are all or homepage. 1. all: all files 2. homepage: home page",
-							Optional:    true,
-							Validators: []validator.String{
-								stringvalidator.OneOf("all", "homepage", ""),
-							},
-							Computed: true,
-							Default:  stringdefault.StaticString(""),
 						},
 						"file_type": &schema.StringAttribute{
 							Description: "Matching conditions: file type, please separate by semicolon, optional values: gif png bmp jpeg jpg html htm shtml mp3 wma flv mp4 wmv zip exe rar css txt ico js swf m3u8 xml f4m bootstarp ts.",
@@ -161,8 +146,6 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
                             Do not pass the default is false
                             `,
 							Optional: true,
-							Computed: true,
-							Default:  booldefault.StaticBool(false),
 						},
 						"header_name": &schema.StringAttribute{
 							Description: `
@@ -247,9 +230,10 @@ func (r *httpHeaderConfigResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	err = r.updateConfig(&vendorSpecificModel)
+	err = r.updateConfig(&vendorSpecificModel, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Fail to update http header", err.Error())
+		return
 	}
 
 	// Read again in the create stage to get the data_id,
@@ -279,17 +263,74 @@ func (r *httpHeaderConfigResource) Read(ctx context.Context, req resource.ReadRe
 }
 
 func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan *httpHeaderConfigModel
+	var plan, state *httpHeaderConfigModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	err := r.updateConfig(plan)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	stateHttpHeaders := []string{}
+	planHttpHeaders := []string{}
+	for _, rule := range state.Rules {
+		stateHttpHeaders = append(stateHttpHeaders, rule.HeaderName.ValueString())
+	}
+	for _, rule := range plan.Rules {
+		planHttpHeaders = append(planHttpHeaders, rule.HeaderName.ValueString())
+	}
+
+	headersInState := mapset.NewSet(stateHttpHeaders...)
+	headersInPlan := mapset.NewSet(planHttpHeaders...)
+
+	// Deletion of headers might occur as a part of the update phase.
+	// Find the headers that are present in the state but not in the plan
+	deletedHeaders := headersInState.Difference(headersInPlan)
+	if deletedHeaders.Cardinality() > 0 {
+		for _, name := range deletedHeaders.ToSlice() {
+			headerIds := map[string]int64{}
+			resp.Diagnostics.Append(state.HeaderIds.ElementsAs(ctx, &headerIds, false)...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			if headerIds[name] == 0 {
+				resp.Diagnostics.AddWarning("Should have data_id but data_id not present in state",
+					fmt.Sprintf("Expected %s to have data_id in state, but data_id not found.", name),
+				)
+			}
+		}
+	}
+
+	// The header ids of the plan is known after apply.
+	// Temporarily set it to the header ids of the state
+	plan.HeaderIds = state.HeaderIds
+
+	err := r.updateConfig(plan, deletedHeaders.ToSlice())
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to update http header config", err.Error())
 		return
 	}
+
+	rules := []*headerRuleModel{}
+	for _, rule := range plan.Rules {
+		if !rule.HeaderName.IsNull() {
+			rules = append(rules, rule)
+		}
+	}
+	plan.Rules = rules
+
+	// Read again in the create stage to get the data_id,
+	// and set it as a Computed value
+	err = r.readHeaderDataID(plan)
+	if err != nil {
+		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
+		return
+	}
+
 	resp.State.Set(ctx, plan)
 }
 
@@ -301,15 +342,12 @@ func (r *httpHeaderConfigResource) Delete(ctx context.Context, req resource.Dele
 	}
 
 	// During deletion, only the data-id needs to be passed in.
-	deletedRules := []*headerRuleModel{}
+	deletedRules := []string{}
 	for _, rule := range model.Rules {
-		deletedRules = append(deletedRules, &headerRuleModel{
-			DataId: rule.DataId,
-		})
+		deletedRules = append(deletedRules, rule.HeaderName.ValueString())
 	}
-	model.Rules = deletedRules
 
-	err := r.updateConfig(model)
+	err := r.updateConfig(model, deletedRules)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to delete http head configs", err.Error())
 	}
@@ -389,15 +427,23 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	resp.State.Set(ctx, model)
 }
 
-func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel) error {
+func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, deletedHeaders []string) error {
+	headerIds := make(map[string]types.Int64)
+
+	if !model.HeaderIds.IsNull() && !model.HeaderIds.IsUnknown() {
+		diags := model.HeaderIds.ElementsAs(context.Background(), &headerIds, false)
+		if diags.HasError() {
+			return fmt.Errorf(diags.Errors()[0].Detail())
+		}
+	}
+
 	rules := make([]*cdnetworksapi.HeaderModifyRule, 0)
 	if model.Rules != nil {
 		for _, ruleModel := range model.Rules {
 			rule := &cdnetworksapi.HeaderModifyRule{
-				DataId:            ruleModel.DataId.ValueInt64Pointer(),
+				DataId:            headerIds[ruleModel.HeaderName.ValueString()].ValueInt64Pointer(),
 				PathPattern:       ruleModel.PathPattern.ValueStringPointer(),
 				ExceptPathPattern: ruleModel.ExceptPathPattern.ValueStringPointer(),
-				CustomPattern:     ruleModel.CustomPattern.ValueStringPointer(),
 				FileType:          ruleModel.FileType.ValueStringPointer(),
 				CustomFileType:    ruleModel.CustomFileType.ValueStringPointer(),
 				Directory:         ruleModel.Directory.ValueStringPointer(),
@@ -411,17 +457,18 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel) er
 				Override:          ruleModel.Override.ValueBoolPointer(),
 			}
 
-			// Since data-id is a Computed value, and thus only known after apply,
-			// the above section will generate a zero value for data-id
-			// which the vendor API will reject.
-			// Manually set this value to nil.
-			if *rule.DataId == 0 {
-				rule.DataId = nil
-			}
-
 			rules = append(rules, rule)
 		}
 	}
+
+	for _, rule := range deletedHeaders {
+		rule := &cdnetworksapi.HeaderModifyRule{
+			DataId: headerIds[rule].ValueInt64Pointer(),
+		}
+
+		rules = append(rules, rule)
+	}
+
 	updateHttpConfigRequest := cdnetworksapi.UpdateHttpConfigRequest{
 		HeaderModifyRules: rules,
 	}
@@ -461,9 +508,7 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 			}
 
 			ruleModel := &headerRuleModel{
-				DataId:            types.Int64PointerValue(rule.DataId),
 				ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
-				CustomPattern:     types.StringPointerValue(rule.CustomPattern),
 				FileType:          types.StringPointerValue(rule.FileType),
 				CustomFileType:    types.StringPointerValue(rule.CustomFileType),
 				Directory:         types.StringPointerValue(rule.Directory),
@@ -516,6 +561,7 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 	}
 
 	rules := []*headerRuleModel{}
+	headerIds := map[string]int64{}
 
 	if queryHttpConfigResponse.HeaderModifyRules != nil {
 		state := mapset.NewSet[string]()
@@ -525,10 +571,13 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 
 		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
 			if state.ContainsOne(*rule.HeaderName) {
+				exceptPathPattern := ""
+				if rule.ExceptPathPattern != nil {
+					exceptPathPattern = *rule.ExceptPathPattern
+				}
+
 				rules = append(rules, &headerRuleModel{
-					DataId:            types.Int64PointerValue(rule.DataId),
-					ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
-					CustomPattern:     types.StringPointerValue(rule.CustomPattern),
+					ExceptPathPattern: types.StringValue(exceptPathPattern),
 					FileType:          types.StringPointerValue(rule.FileType),
 					CustomFileType:    types.StringPointerValue(rule.CustomFileType),
 					Directory:         types.StringPointerValue(rule.Directory),
@@ -543,10 +592,22 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 					RequestHeader:     types.StringPointerValue(rule.RequestHeader),
 					Override:          types.BoolPointerValue(rule.Override),
 				})
+
+				headerIds[*rule.HeaderName] = *rule.DataId
 			}
 		}
 
+		elems := map[string]attr.Value{}
+		for k, v := range headerIds {
+			elems[k] = types.Int64Value(v)
+		}
+
+		diags := diag.Diagnostics{}
 		model.Rules = rules
+		model.HeaderIds, diags = types.MapValue(types.Int64Type, elems)
+		if diags.HasError() {
+			return fmt.Errorf(diags[0].Detail())
+		}
 	}
 
 	return nil
@@ -566,9 +627,11 @@ func (r *httpHeaderConfigResource) readHeaderDataID(model *httpHeaderConfigModel
 			dataIds[*rule.HeaderName] = *rule.DataId
 		}
 
+		elems := map[string]attr.Value{}
+
 		// Iterate over each model in the plan
 		for _, rule := range model.Rules {
-			// Find the data dataID using the header name
+			// Find the dataID using the header name
 			dataID := dataIds[rule.HeaderName.ValueString()]
 
 			// dataID is zero means that the header was not found
@@ -577,8 +640,10 @@ func (r *httpHeaderConfigResource) readHeaderDataID(model *httpHeaderConfigModel
 				return fmt.Errorf("header not found for: %s", rule.HeaderName.ValueString())
 			}
 
-			rule.DataId = types.Int64Value(dataIds[rule.HeaderName.ValueString()])
+			elems[rule.HeaderName.ValueString()] = types.Int64Value(dataID)
 		}
+
+		model.HeaderIds, _ = types.MapValue(types.Int64Type, elems)
 	}
 
 	return nil
@@ -601,13 +666,12 @@ func (rule *headerRuleModel) check() error {
 		}
 	}
 	// check range
-	if (rule.CustomPattern.IsUnknown() || rule.CustomPattern.IsNull()) &&
-		(rule.Directory.IsUnknown() || rule.Directory.IsNull()) &&
+	if (rule.Directory.IsUnknown() || rule.Directory.IsNull()) &&
 		(rule.SpecifyUrl.IsUnknown() || rule.SpecifyUrl.IsNull()) &&
 		(rule.CustomFileType.IsUnknown() || rule.CustomFileType.IsNull()) &&
 		(rule.PathPattern.IsUnknown() || rule.PathPattern.IsNull()) &&
 		(rule.FileType.IsUnknown() || rule.FileType.IsNull()) {
-		return fmt.Errorf("Pick one of the following items: path_pattern, custom_pattern, file_type, custom_file_type, directory and specify_url_pattern")
+		return fmt.Errorf("Pick one of the following items: path_pattern, file_type, custom_file_type, directory and specify_url_pattern")
 	}
 	// check action
 	if rule.Action.IsNull() || rule.Action.IsUnknown() {
@@ -647,7 +711,6 @@ func (rule *headerRuleModel) String() string {
 	values := []string{
 		rule.PathPattern.String(),
 		rule.ExceptPathPattern.String(),
-		rule.CustomPattern.String(),
 		rule.SpecifyUrl.String(),
 		rule.FileType.String(),
 		rule.CustomFileType.String(),

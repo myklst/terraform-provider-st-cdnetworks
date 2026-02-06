@@ -4,9 +4,9 @@ page_title: "st-cdnetworks_anti_hotlinking_config Resource - st-cdnetworks"
 subcategory: ""
 description: |-
   Anti-theft chain configuration
-                      note:
-                      1. When you need to cancel the anti-theft chain configuration settings, you can pass in the empty node .
-                      2. When it is necessary to set the anti-theft chain configuration, this item is required.
+  note:
+  1. When you need to cancel the anti-theft chain configuration settings, you can pass in the empty node .
+  2. When it is necessary to set the anti-theft chain configuration, this item is required.
 ---
 
 # st-cdnetworks_anti_hotlinking_config (Resource)

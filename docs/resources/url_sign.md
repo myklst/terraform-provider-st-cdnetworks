@@ -45,10 +45,11 @@ resource "st-cdnetworks_url_sign" "test" {
 - `ignore_key_and_time_position` (Boolean) Key and time can be interchanged.
 - `ignore_uri_slash` (Boolean) Remove / from $url in hotlink protection.
 - `log_format` (Boolean) Logging original url.
+- `lower_limit_expiry_time` (Number) Validity of the URL Signature before the timestamp, in seconds.
 - `path_pattern` (String) URL matching mode, supports regular expressions. Timestamp anti-hotlink verification is performed on the matched URLs; unmatched URLs are rejected.
 - `primary_key` (String, Sensitive) Primary key of the URL Signature.
 - `request_url_style` (String) Anti-hotlink request URL format.
 - `secondary_key` (String, Sensitive) Backup key of the URL Signature.
 - `time_format` (String) Anti-hotlink encryption string time format, multiple selections are allowed, separated by semicolons (;).
 - `time_param` (String) Parameter name of the time string.
-- `ttl` (Number) TTL of the URL Signature, in seconds.
+- `upper_limit_expiry_time` (Number) Validity of the URL Signature after the timestamp, also known as TTL, in seconds.
