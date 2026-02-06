@@ -35,7 +35,11 @@ resource "st-cdnetworks_http_header_config" "test" {
 
 ### Optional
 
-- `header_rule` (Block List) Header rule (see [below for nested schema](#nestedblock--header_rule))
+- `header_rule` (Block Set) Header rule (see [below for nested schema](#nestedblock--header_rule))
+
+### Read-Only
+
+- `header_ids` (Map of Number)
 
 <a id="nestedblock--header_rule"></a>
 ### Nested Schema for `header_rule`
@@ -52,7 +56,6 @@ Optional:
                             False: indicates that the value of the header-name is processed according to the actual parameters, and no regular match is made.
                             Do not pass the default is false
 - `custom_file_type` (String) Matching condition: Custom file type, separate by semicolon.
-- `custom_pattern` (String) Matching conditions: specify common types, optional values are all or homepage. 1. all: all files 2. homepage: home page
 - `directory` (String) directory
 - `except_path_pattern` (String) Exception url matching pattern, support regular. Example:
 - `file_type` (String) Matching conditions: file type, please separate by semicolon, optional values: gif png bmp jpeg jpg html htm shtml mp3 wma flv mp4 wmv zip exe rar css txt ico js swf m3u8 xml f4m bootstarp ts.
@@ -92,6 +95,7 @@ Optional:
 #header{XXX} : to get the value in the HTTP header of the request, such as #header{user-agent}, is to get the user-agent value in the header
 
 #cookie{XXX} : get the value in the cookie, such as #cookie{account}, is to get the value of the account set in the cookie
+- `override` (Boolean) If set to true, creates a new header or overwrite the existing header value. If set to false, appends a new header. Only applies to these two directions, cache2origin and cache2visitor.
 - `path_pattern` (String) The url matching mode supports fuzzy regularization. If all matches, the input parameters can be configured as: *
 - `request_header` (String) Match request header, header values support regular, header and header values separated by Spaces, e.g. : Range bytes=[0-9]{9,}
 - `request_method` (String) The matching request method, the optional values are: GET, POST, PUT, HEAD, DELETE, OPTIONS, separate by semicolons.

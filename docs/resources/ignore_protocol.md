@@ -4,8 +4,7 @@ page_title: "st-cdnetworks_ignore_protocol Resource - st-cdnetworks"
 subcategory: ""
 description: |-
   Ignore protocol caching and push configuration, parent tags
-  1. This must be filled when protocol cache and push configuration need to be ignored
-  2. Clear the configuration ignore about protocol cache and pushing
+  This must be filled when protocol cache and push configuration need to be ignoredClear the configuration ignore about protocol cache and pushing
 ---
 
 # st-cdnetworks_ignore_protocol (Resource)
