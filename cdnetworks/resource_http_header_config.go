@@ -22,6 +22,7 @@ import (
 type headerRuleModel struct {
 	PathPattern       types.String `tfsdk:"path_pattern"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
+	CustomPattern     types.String `tfsdk:"custom_pattern"`
 	SpecifyUrl        types.String `tfsdk:"specify_url_pattern"`
 	FileType          types.String `tfsdk:"file_type"`
 	CustomFileType    types.String `tfsdk:"custom_file_type"`
@@ -88,6 +89,13 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 						"file_type": &schema.StringAttribute{
 							Description: "Matching conditions: file type, please separate by semicolon, optional values: gif png bmp jpeg jpg html htm shtml mp3 wma flv mp4 wmv zip exe rar css txt ico js swf m3u8 xml f4m bootstarp ts.",
 							Optional:    true,
+						},
+						"custom_pattern": &schema.StringAttribute{
+							Description: "Matching conditions: specify common types, optional values are all or homepage. 1. all: all files 2. homepage: home page",
+							Optional:    true,
+							Validators: []validator.String{
+								stringvalidator.OneOf("all", "homepage", ""),
+							},
 						},
 						"custom_file_type": &schema.StringAttribute{
 							Description: "Matching condition: Custom file type, separate by semicolon.",
@@ -444,6 +452,7 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 				DataId:            headerIds[ruleModel.HeaderName.ValueString()].ValueInt64Pointer(),
 				PathPattern:       ruleModel.PathPattern.ValueStringPointer(),
 				ExceptPathPattern: ruleModel.ExceptPathPattern.ValueStringPointer(),
+				CustomPattern:     ruleModel.CustomPattern.ValueStringPointer(),
 				FileType:          ruleModel.FileType.ValueStringPointer(),
 				CustomFileType:    ruleModel.CustomFileType.ValueStringPointer(),
 				Directory:         ruleModel.Directory.ValueStringPointer(),
