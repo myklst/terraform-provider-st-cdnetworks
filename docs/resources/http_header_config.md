@@ -56,6 +56,7 @@ Optional:
                             False: indicates that the value of the header-name is processed according to the actual parameters, and no regular match is made.
                             Do not pass the default is false
 - `custom_file_type` (String) Matching condition: Custom file type, separate by semicolon.
+- `custom_pattern` (String) Matching conditions: specify common types, optional values are all or homepage. 1. all: all files 2. homepage: home page
 - `directory` (String) directory
 - `except_path_pattern` (String) Exception url matching pattern, support regular. Example:
 - `file_type` (String) Matching conditions: file type, please separate by semicolon, optional values: gif png bmp jpeg jpg html htm shtml mp3 wma flv mp4 wmv zip exe rar css txt ico js swf m3u8 xml f4m bootstarp ts.
