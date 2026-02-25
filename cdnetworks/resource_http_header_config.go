@@ -22,6 +22,7 @@ import (
 type headerRuleModel struct {
 	PathPattern       types.String `tfsdk:"path_pattern"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
+	CustomPattern     types.String `tfsdk:"custom_pattern"`
 	SpecifyUrl        types.String `tfsdk:"specify_url_pattern"`
 	FileType          types.String `tfsdk:"file_type"`
 	CustomFileType    types.String `tfsdk:"custom_file_type"`
@@ -88,6 +89,13 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 						"file_type": &schema.StringAttribute{
 							Description: "Matching conditions: file type, please separate by semicolon, optional values: gif png bmp jpeg jpg html htm shtml mp3 wma flv mp4 wmv zip exe rar css txt ico js swf m3u8 xml f4m bootstarp ts.",
 							Optional:    true,
+						},
+						"custom_pattern": &schema.StringAttribute{
+							Description: "Matching conditions: specify common types, optional values are all or homepage. 1. all: all files 2. homepage: home page",
+							Optional:    true,
+							Validators: []validator.String{
+								stringvalidator.OneOf("all", "homepage", ""),
+							},
 						},
 						"custom_file_type": &schema.StringAttribute{
 							Description: "Matching condition: Custom file type, separate by semicolon.",
@@ -444,6 +452,7 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 				DataId:            headerIds[ruleModel.HeaderName.ValueString()].ValueInt64Pointer(),
 				PathPattern:       ruleModel.PathPattern.ValueStringPointer(),
 				ExceptPathPattern: ruleModel.ExceptPathPattern.ValueStringPointer(),
+				CustomPattern:     ruleModel.CustomPattern.ValueStringPointer(),
 				FileType:          ruleModel.FileType.ValueStringPointer(),
 				CustomFileType:    ruleModel.CustomFileType.ValueStringPointer(),
 				Directory:         ruleModel.Directory.ValueStringPointer(),
@@ -511,6 +520,7 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 				ExceptPathPattern: types.StringPointerValue(rule.ExceptPathPattern),
 				FileType:          types.StringPointerValue(rule.FileType),
 				CustomFileType:    types.StringPointerValue(rule.CustomFileType),
+				CustomPattern:     types.StringPointerValue(rule.CustomPattern),
 				Directory:         types.StringPointerValue(rule.Directory),
 				SpecifyUrl:        types.StringPointerValue(rule.SpecifyUrl),
 				RequestMethod:     types.StringPointerValue(rule.RequestMethod),
@@ -576,10 +586,16 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 					exceptPathPattern = *rule.ExceptPathPattern
 				}
 
+				customPattern := ""
+				if rule.CustomPattern != nil {
+					customPattern = *rule.CustomPattern
+				}
+
 				rules = append(rules, &headerRuleModel{
 					ExceptPathPattern: types.StringValue(exceptPathPattern),
 					FileType:          types.StringPointerValue(rule.FileType),
 					CustomFileType:    types.StringPointerValue(rule.CustomFileType),
+					CustomPattern:     types.StringValue(customPattern),
 					Directory:         types.StringPointerValue(rule.Directory),
 					SpecifyUrl:        types.StringPointerValue(rule.SpecifyUrl),
 					RequestMethod:     types.StringPointerValue(rule.RequestMethod),
@@ -666,12 +682,12 @@ func (rule *headerRuleModel) check() error {
 		}
 	}
 	// check range
-	if (rule.Directory.IsUnknown() || rule.Directory.IsNull()) &&
-		(rule.SpecifyUrl.IsUnknown() || rule.SpecifyUrl.IsNull()) &&
+	if (rule.CustomPattern.IsUnknown() || rule.CustomPattern.IsNull()) &&
+		(rule.Directory.IsUnknown() || rule.Directory.IsNull()) &&
 		(rule.CustomFileType.IsUnknown() || rule.CustomFileType.IsNull()) &&
 		(rule.PathPattern.IsUnknown() || rule.PathPattern.IsNull()) &&
 		(rule.FileType.IsUnknown() || rule.FileType.IsNull()) {
-		return fmt.Errorf("Pick one of the following items: path_pattern, file_type, custom_file_type, directory and specify_url_pattern")
+		return fmt.Errorf("Pick one of the following items: path_pattern, custom_pattern, file_type, custom_file_type, directory and specify_url_pattern")
 	}
 	// check action
 	if rule.Action.IsNull() || rule.Action.IsUnknown() {
@@ -714,6 +730,7 @@ func (rule *headerRuleModel) String() string {
 		rule.SpecifyUrl.String(),
 		rule.FileType.String(),
 		rule.CustomFileType.String(),
+		rule.CustomPattern.String(),
 		rule.Directory.String(),
 		rule.Action.String(),
 		rule.AllowRegexp.String(),
