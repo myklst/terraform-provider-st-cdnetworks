@@ -221,7 +221,6 @@ func (r *urlSignResource) Delete(ctx context.Context, req resource.DeleteRequest
 	_, err := r.client.UpdateURLSign(model.DomainId.ValueString(), cdnetworksapi.UpdateURLSignRequest{
 		TimestampVisitControlRule: &cdnetworksapi.TimestampVisitControlRule{},
 	})
-
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR] Failed to Delete URL Sign", err.Error())
 		return
@@ -249,7 +248,6 @@ func (r *urlSignResource) updateUrlSign(model *urlSignResourceModel) error {
 	}
 
 	_, err := r.client.UpdateURLSign(model.DomainId.ValueString(), updateUrlSignRequest)
-
 	if err != nil {
 		return err
 	}
