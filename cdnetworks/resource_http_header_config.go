@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/mitchellh/hashstructure"
@@ -23,6 +22,7 @@ import (
 )
 
 type headerRuleModel struct {
+	DataID            types.Int64  `tfsdk:"data_id"`
 	PathPattern       types.String `tfsdk:"path_pattern" hash:"ignore"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
 	CustomPattern     types.String `tfsdk:"custom_pattern"`
@@ -42,9 +42,8 @@ type headerRuleModel struct {
 }
 
 type httpHeaderConfigModel struct {
-	DomainId  types.String       `tfsdk:"domain_id"`
-	HeaderIds types.Map          `tfsdk:"header_ids"`
-	Rules     []*headerRuleModel `tfsdk:"header_rule"`
+	DomainId types.String       `tfsdk:"domain_id"`
+	Rules    []*headerRuleModel `tfsdk:"header_rule"`
 }
 
 type httpHeaderConfigResource struct {
@@ -74,18 +73,21 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 				Description: "Domain ID",
 				Required:    true,
 			},
-			"header_ids": &schema.MapAttribute{
-				ElementType: types.Int64Type,
-				Optional:    false,
-				Required:    false,
-				Computed:    true,
-			},
 		},
 		Blocks: map[string]schema.Block{
 			"header_rule": &schema.SetNestedBlock{
 				Description: "Header rule",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
+						"data_id": &schema.Int64Attribute{
+							Description: "Used to keep track of vendor-added header rules. Prevents vendor-added rules from being overwritten.",
+							Optional:    false,
+							Required:    false,
+							Computed:    true,
+							PlanModifiers: []planmodifier.Int64{
+								int64planmodifier.UseStateForUnknown(),
+							},
+						},
 						"except_path_pattern": &schema.StringAttribute{
 							Description: "Exception url matching pattern, support regular. Example:",
 							Optional:    true,
@@ -256,7 +258,7 @@ func (r *httpHeaderConfigResource) Create(ctx context.Context, req resource.Crea
 
 	// Read again in the create stage to get the data_id,
 	// and set it as a Computed value
-	err = r.readHeaderDataID(model)
+	err = r.readModel(model)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
 		return
@@ -292,21 +294,17 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	stateHttpHeaders := []string{}
-	planHttpHeaders := []string{}
+	stateHttpHeaders := []int64{}
+	planHttpHeaders := []int64{}
 	for _, rule := range state.Rules {
-		hash, err := hashstructure.Hash(rule, nil)
-		if err != nil {
-			resp.Diagnostics.AddError("cannot hash header_rule", err.Error())
+		if !rule.DataID.IsNull() && !rule.DataID.IsUnknown() {
+			stateHttpHeaders = append(stateHttpHeaders, rule.DataID.ValueInt64())
 		}
-		stateHttpHeaders = append(stateHttpHeaders, strconv.FormatUint(hash, 10))
 	}
 	for _, rule := range plan.Rules {
-		hash, err := hashstructure.Hash(rule, nil)
-		if err != nil {
-			resp.Diagnostics.AddError("cannot hash header_rule", err.Error())
+		if !rule.DataID.IsNull() && !rule.DataID.IsUnknown() {
+			planHttpHeaders = append(planHttpHeaders, rule.DataID.ValueInt64())
 		}
-		planHttpHeaders = append(planHttpHeaders, strconv.FormatUint(hash, 10))
 	}
 
 	headersInState := mapset.NewSet(stateHttpHeaders...)
@@ -315,26 +313,6 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 	// Deletion of headers might occur as a part of the update phase.
 	// Find the headers that are present in the state but not in the plan
 	deletedHeaders := headersInState.Difference(headersInPlan)
-	if deletedHeaders.Cardinality() > 0 {
-		for _, name := range deletedHeaders.ToSlice() {
-			headerIds := map[string]int64{}
-			resp.Diagnostics.Append(state.HeaderIds.ElementsAs(ctx, &headerIds, false)...)
-			if resp.Diagnostics.HasError() {
-				return
-			}
-
-			if headerIds[name] == 0 {
-				resp.Diagnostics.AddWarning("Should have data_id but data_id not present in state",
-					fmt.Sprintf("Expected %s to have data_id in state, but data_id not found.", name),
-				)
-			}
-		}
-	}
-
-	// The header ids of the plan is known after apply.
-	// Temporarily set it to the header ids of the state
-	plan.HeaderIds = state.HeaderIds
-
 	err := r.updateConfig(plan, deletedHeaders.ToSlice())
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to update http header config", err.Error())
@@ -351,7 +329,7 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 
 	// Read again in the create stage to get the data_id,
 	// and set it as a Computed value
-	err = r.readHeaderDataID(plan)
+	err = r.readModel(plan)
 	if err != nil {
 		resp.Diagnostics.AddError("[API ERROR]Fail to read_http_header_config", err.Error())
 		return
@@ -368,9 +346,11 @@ func (r *httpHeaderConfigResource) Delete(ctx context.Context, req resource.Dele
 	}
 
 	// During deletion, only the data-id needs to be passed in.
-	deletedRules := []string{}
+	deletedRules := []int64{}
 	for _, rule := range model.Rules {
-		deletedRules = append(deletedRules, rule.HeaderName.ValueString())
+		if !rule.DataID.IsNull() && !rule.DataID.IsUnknown() {
+			deletedRules = append(deletedRules, rule.DataID.ValueInt64())
+		}
 	}
 
 	err := r.updateConfig(model, deletedRules)
@@ -426,21 +406,18 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	resp.State.Set(ctx, model)
 }
 
-func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, deletedHeaders []string) error {
-	headerIds := make(map[string]types.Int64)
-
-	if !model.HeaderIds.IsNull() && !model.HeaderIds.IsUnknown() {
-		diags := model.HeaderIds.ElementsAs(context.Background(), &headerIds, false)
-		if diags.HasError() {
-			return fmt.Errorf(diags.Errors()[0].Detail())
-		}
-	}
-
+func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, deletedHeaders []int64) error {
 	rules := make([]*cdnetworksapi.HeaderModifyRule, 0)
 	if model.Rules != nil {
 		for _, ruleModel := range model.Rules {
 			rule := &cdnetworksapi.HeaderModifyRule{
-				DataId:            headerIds[ruleModel.HeaderName.ValueString()].ValueInt64Pointer(),
+				DataId: func() *int64 {
+					if ruleModel.DataID.IsNull() || ruleModel.DataID.IsUnknown() {
+						return nil
+					} else {
+						return ruleModel.DataID.ValueInt64Pointer()
+					}
+				}(),
 				PathPattern:       ruleModel.PathPattern.ValueStringPointer(),
 				ExceptPathPattern: ruleModel.ExceptPathPattern.ValueStringPointer(),
 				CustomPattern:     ruleModel.CustomPattern.ValueStringPointer(),
@@ -464,7 +441,7 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 
 	for _, rule := range deletedHeaders {
 		rule := &cdnetworksapi.HeaderModifyRule{
-			DataId: headerIds[rule].ValueInt64Pointer(),
+			DataId: &rule,
 		}
 
 		rules = append(rules, rule)
@@ -538,82 +515,46 @@ func (r *httpHeaderConfigResource) updateModel(model *httpHeaderConfigModel) err
 	return nil
 }
 
-// Reads and returns the latest header configurations.
-// Only headers that are present in the plan will be returned
 func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error {
 	queryHttpConfigResponse, err := r.client.QueryHttpConfig(model.DomainId.ValueString())
 	if err != nil {
 		return err
 	}
 
+	rulesInPlan := map[uint64]*headerRuleModel{}
+	rulesInHTTPResp := map[uint64]*headerRuleModel{}
+
+	if queryHttpConfigResponse.HeaderModifyRules != nil {
+		// Add the header_rule's hash and its value into a map
+		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
+			hash, err := hashstructure.Hash(&rule, nil)
+			if err != nil {
+				return err
+			}
+
+			rulesInHTTPResp[hash] = fromHeaderRuleHTTPModel(rule)
+		}
+	}
+
+	// Iterate over each model in the plan
+	for _, rule := range model.Rules {
+		hash, err := hashstructure.Hash(toHeaderRuleHTTPModel(*rule), nil)
+		if err != nil {
+			return err
+		}
+
+		rulesInPlan[hash] = rule
+	}
+
+	headersInPlan := mapset.NewSetFromMapKeys(rulesInPlan)
+	headersInHTTPResp := mapset.NewSetFromMapKeys(rulesInHTTPResp)
+	headersInBoth := headersInPlan.Intersect(headersInHTTPResp)
+
 	rules := []*headerRuleModel{}
-	headerIds := map[string]attr.Value{}
-
-	if queryHttpConfigResponse.HeaderModifyRules != nil {
-		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
-			tfStructRule := fromHeaderRuleHTTPModel(rule)
-			rules = append(rules, tfStructRule)
-
-			hash, err := hashstructure.Hash(tfStructRule, nil)
-			if err != nil {
-				return err
-			}
-
-			headerIds[strconv.FormatUint(hash, 10)] = types.Int64Value(*rule.DataId)
-		}
-
-		diags := diag.Diagnostics{}
-		model.Rules = rules
-		model.HeaderIds, diags = types.MapValue(types.Int64Type, headerIds)
-		if diags.HasError() {
-			return fmt.Errorf(diags[0].Detail())
-		}
+	for _, dataID := range headersInBoth.ToSlice() {
+		rules = append(rules, rulesInHTTPResp[dataID])
 	}
-
-	return nil
-}
-
-func (r *httpHeaderConfigResource) readHeaderDataID(model *httpHeaderConfigModel) error {
-	queryHttpConfigResponse, err := r.client.QueryHttpConfig(model.DomainId.ValueString())
-	if err != nil {
-		return err
-	}
-
-	if queryHttpConfigResponse.HeaderModifyRules != nil {
-		dataIds := map[string]int64{}
-
-		// Add the header_rule's hash and its dataID (obtained from API call) into a map
-		for _, rule := range queryHttpConfigResponse.HeaderModifyRules {
-			tfStruct := fromHeaderRuleHTTPModel(rule)
-			hash, err := hashstructure.Hash(tfStruct, nil)
-			if err != nil {
-				return err
-			}
-
-			dataIds[strconv.FormatUint(hash, 10)] = *rule.DataId
-		}
-
-		elems := map[string]attr.Value{}
-
-		// Iterate over each model in the plan
-		for _, rule := range model.Rules {
-			hash, err := hashstructure.Hash(rule, nil)
-			if err != nil {
-				return err
-			}
-			dataID := dataIds[strconv.FormatUint(hash, 10)]
-
-			// dataID is zero means that the header was not found
-			// in the resporse from the API call
-			if dataID == 0 {
-				return fmt.Errorf("header not found for: %s", rule.HeaderName.ValueString())
-			}
-
-			elems[strconv.FormatUint(hash, 10)] = types.Int64Value(dataID)
-		}
-
-		model.HeaderIds, _ = types.MapValue(types.Int64Type, elems)
-	}
+	model.Rules = rules
 
 	return nil
 }
@@ -724,5 +665,26 @@ func fromHeaderRuleHTTPModel(rule *cdnetworksapi.HeaderModifyRule) *headerRuleMo
 		RequestHeader:     types.StringPointerValue(rule.RequestHeader),
 		Override:          types.BoolPointerValue(rule.Override),
 		Priority:          types.Int64PointerValue(rule.Priority),
+	}
+}
+
+func toHeaderRuleHTTPModel(ruleModel headerRuleModel) cdnetworksapi.HeaderModifyRule {
+	return cdnetworksapi.HeaderModifyRule{
+		DataId:            ruleModel.DataID.ValueInt64Pointer(),
+		PathPattern:       ruleModel.PathPattern.ValueStringPointer(),
+		ExceptPathPattern: ruleModel.ExceptPathPattern.ValueStringPointer(),
+		CustomPattern:     ruleModel.CustomPattern.ValueStringPointer(),
+		FileType:          ruleModel.FileType.ValueStringPointer(),
+		CustomFileType:    ruleModel.CustomFileType.ValueStringPointer(),
+		Directory:         ruleModel.Directory.ValueStringPointer(),
+		SpecifyUrl:        ruleModel.SpecifyUrl.ValueStringPointer(),
+		RequestMethod:     ruleModel.RequestMethod.ValueStringPointer(),
+		HeaderDirection:   ruleModel.HeaderDirection.ValueStringPointer(),
+		Action:            ruleModel.Action.ValueStringPointer(),
+		AllowRegexp:       ruleModel.AllowRegexp.ValueBoolPointer(),
+		HeaderName:        ruleModel.HeaderName.ValueStringPointer(),
+		HeaderValue:       ruleModel.HeaderValue.ValueStringPointer(),
+		Override:          ruleModel.Override.ValueBoolPointer(),
+		Priority:          ruleModel.Priority.ValueInt64Pointer(),
 	}
 }
