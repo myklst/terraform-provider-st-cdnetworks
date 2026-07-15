@@ -25,7 +25,7 @@ import (
 )
 
 type headerRuleModel struct {
-	PathPattern       types.String `tfsdk:"path_pattern" hash:"ignore"`
+	PathPattern       types.String `tfsdk:"path_pattern"`
 	ExceptPathPattern types.String `tfsdk:"except_path_pattern"`
 	CustomPattern     types.String `tfsdk:"custom_pattern"`
 	SpecifyUrl        types.String `tfsdk:"specify_url_pattern"`
@@ -77,6 +77,7 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 				Required:    true,
 			},
 			"header_ids": &schema.MapAttribute{
+				Description: "Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.",
 				ElementType: types.Int64Type,
 				Optional:    false,
 				Required:    false,
@@ -85,7 +86,7 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 		},
 		Blocks: map[string]schema.Block{
 			"header_rule": &schema.SetNestedBlock{
-				Description: "Header rule",
+				Description: "A set of header rules. Note: 1. Two header rules with the exact same configuration will be considered as one rule only, inline with the behaviour of SetNestedBllock 2. During an update of an existing header rule, the old header rule will be destroyed and a new rule will be created in its place. ",
 				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"except_path_pattern": &schema.StringAttribute{
@@ -331,13 +332,21 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 	deletedHeaders := headersInState.Difference(headersInPlan)
 	deletedIds := []int64{}
 	for hash, dataID := range state.HeaderIds.Elements() {
-		hashInt64, _ := strconv.ParseInt(hash, 10, 64)
-		if deletedHeaders.Contains(hashInt64) {
+		hashInt64, err := strconv.ParseUint(hash, 10, 64)
+		if err != nil {
+			resp.Diagnostics.AddError("cannot parse string to int64", "")
+			return
+		}
+
+ 		// Check if this header is one of the deleted header 
+		if deletedHeaders.Contains(int64(hashInt64)) {
+			// Retrieve the vendor given id of the header
 			dataIDInteger, ok := dataID.(basetypes.Int64Value)
 			if !ok {
-				resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected types.Int64, got %T", dataID))
+				resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected basetypes.Int64Value, got %T", dataID))
 				return
 			}
+            // Add the vendor given header id into slice of deletedIds
 			deletedIds = append(deletedIds, dataIDInteger.ValueInt64())
 		}
 	}
@@ -424,7 +433,7 @@ func (r *httpHeaderConfigResource) ModifyPlan(ctx context.Context, req resource.
 func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	idParts := strings.Split(req.ID, ",")
 	if len(idParts) < 2 {
-		resp.Diagnostics.AddError("[IMPORT ERROR]Arguments incomplete", "Import requires domain,data_id(int64),... as input")
+		resp.Diagnostics.AddError("[IMPORT ERROR]Arguments incomplete", "Import requires domain,data_id(the int64 id given by the vendor),... as input")
 		return
 	}
 

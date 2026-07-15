@@ -35,11 +35,11 @@ resource "st-cdnetworks_http_header_config" "test" {
 
 ### Optional
 
-- `header_rule` (Block Set) Header rule (see [below for nested schema](#nestedblock--header_rule))
+- `header_rule` (Block Set) A set of header rules. Note: 1. Two header rules with the exact same configuration will be considered as one rule only, inline with the behaviour of SetNestedBllock 2. During an update of an existing header rule, the old header rule will be destroyed and a new rule will be created in its place. (see [below for nested schema](#nestedblock--header_rule))
 
 ### Read-Only
 
-- `header_ids` (Map of Number)
+- `header_ids` (Map of Number) Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.
 
 <a id="nestedblock--header_rule"></a>
 ### Nested Schema for `header_rule`
