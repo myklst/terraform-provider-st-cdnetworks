@@ -573,9 +573,16 @@ func (c *Client) UpdateControlConfig(domainId string, request UpdateControlConfi
 
 type CompressionSetting struct {
 	CompressionEnabled *bool     `json:"compression-enabled,omitempty" xml:"compression-enabled,omitempty"`
-	PathPattern        *string   `json:"path-pattern,omitempty" xml:"path-pattern,omitempty"`
+	BrTypes            *bool     `json:"br-types,omitempty" xml:"br-types,omitempty"`
 	IgnoreLetterCase   *bool     `json:"ignore-letter-case,omitempty" xml:"ignore-letter-case,omitempty"`
-	FileTypes          []*string `json:"file-types,omitempty" xml:"file-types>file-type,omitempty"`
+	SpecifyUrlPattern  *string   `json:"specify-url-pattern,omitempty" xml:"specify-url-pattern,omitempty"`
+	UriFileTypes       *[]string `json:"uri-file-types,omitempty" xml:"uri-file-types,omitempty"`
+	FileTypeOthers     *[]string `json:"file-type-others,omitempty" xml:"file-type-others,omitempty"`
+	PathPattern        *string   `json:"path-pattern,omitempty" xml:"path-pattern,omitempty"`
+	CustomPattern      *string   `json:"custom-pattern,omitempty" xml:"custom-pattern,omitempty"`
+	FileTypes          *string   `json:"file-types,omitempty" xml:"file-type,omitempty"`
+	CustomFileTypes    *string   `json:"custom-file-types,omitempty" xml:"custom-file-type,omitempty"`
+	Directory          *string   `json:"directory,omitempty" xml:"directory,omitempty"`
 }
 
 // QueryCompressionConfig 查询压缩响应配置
