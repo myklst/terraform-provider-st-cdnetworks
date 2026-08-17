@@ -14,7 +14,7 @@ Http header configuration
 
 ```terraform
 resource "st-cdnetworks_http_header_config" "test" {
-  domain_id = st-cdnetworks_shield_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   header_rule {
     action           = "add"

@@ -170,6 +170,7 @@ func (p *cdnetworksProvider) Resources(_ context.Context) []func() resource.Reso
 		NewAntiHotlinkingConfigResource,
 		NewBackToOriginProtocolRewriteConfigResource,
 		NewCacheTimeResource,
+		NewCompressionConfigResource,
 		NewQueryStringUrlConfigResource,
 		NewHttpCodeCacheConfigResource,
 		NewIgnoreProtocolResource,

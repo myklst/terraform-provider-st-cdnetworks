@@ -14,7 +14,7 @@ HTTP2.0 controls whether CDN uses http2.0 protocol to interact with the client, 
 
 ```terraform
 resource "st-cdnetworks_http2_settings_config" "test" {
-  domain_id = st-cdnetworks_shield_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   http2_settings = {
     enable_http2            = true

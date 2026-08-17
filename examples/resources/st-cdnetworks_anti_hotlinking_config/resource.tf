@@ -1,5 +1,5 @@
 resource "st-cdnetworks_anti_hotlinking_config" "test" {
-  domain_id = st-cdnetworks_shield_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   ip_control_rule {
     directory      = "/abc/"

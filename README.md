@@ -47,3 +47,9 @@ References
 - Terraform website: https://www.terraform.io
 - Terraform Plugin Framework: https://developer.hashicorp.com/terraform/tutorials/providers-plugin-framework
 - CDNetworks API documentation: https://docs.cdnetworks.com/en/cdn/apidocs
+
+Generating terraform custom provider plugin docs
+------------------------------------------------
+1. Install `tfplugindocs` from [github](https://github.com/hashicorp/terraform-plugin-docs).
+2. Run `tfplugindocs generate --provider-name st-cdnetworks`
+3. Else you can go to L15 in main.go to trigger the go:generate.
