@@ -4,7 +4,8 @@ page_title: "st-cdnetworks_ignore_protocol Resource - st-cdnetworks"
 subcategory: ""
 description: |-
   Ignore protocol caching and push configuration, parent tags
-  This must be filled when protocol cache and push configuration need to be ignoredClear the configuration ignore about protocol cache and pushing
+  1. This must be filled when protocol cache and push configuration need to be ignored
+  2. Clear the configuration ignore about protocol cache and pushing
 ---
 
 # st-cdnetworks_ignore_protocol (Resource)
@@ -17,7 +18,7 @@ Ignore protocol caching and push configuration, parent tags
 
 ```terraform
 resource "st-cdnetworks_ignore_protocol" "test" {
-  domain_id = st-cdnetworks_cdn_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   ignore_protocol_rule {
     path_pattern          = "/test"

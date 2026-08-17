@@ -1,5 +1,5 @@
 resource "st-cdnetworks_cache_time" "test" {
-  domain_id = st-cdnetworks_shield_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   cache_time_behavior {
     directory = "/abc/"

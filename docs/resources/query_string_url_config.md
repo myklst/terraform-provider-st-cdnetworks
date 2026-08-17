@@ -14,7 +14,7 @@ With the query string URL, you can set whether to cache multiple copies or cache
 
 ```terraform
 resource "st-cdnetworks_query_string_url_config" "test" {
-  domain_id = st-cdnetworks_shield_domain.test.domain_id
+  domain_id = st-cdnetworks_flood_shield_domain.test.domain_id
 
   query_string_setting {
     path_pattern         = "*"
