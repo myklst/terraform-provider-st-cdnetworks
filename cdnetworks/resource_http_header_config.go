@@ -338,7 +338,7 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 			return
 		}
 
- 		// Check if this header is one of the deleted header 
+		// Check if this header is one of the deleted header
 		if deletedHeaders.Contains(int64(hashInt64)) {
 			// Retrieve the vendor given id of the header
 			dataIDInteger, ok := dataID.(basetypes.Int64Value)
@@ -346,9 +346,19 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 				resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected basetypes.Int64Value, got %T", dataID))
 				return
 			}
-            // Add the vendor given header id into slice of deletedIds
+			// Add the vendor given header id into slice of deletedIds
 			deletedIds = append(deletedIds, dataIDInteger.ValueInt64())
 		}
+	}
+
+	// Handle legacy header IDs
+	for _, dataID := range state.HeaderIds.Elements() {
+		dataIDInteger, ok := dataID.(basetypes.Int64Value)
+		if !ok {
+			resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected basetypes.Int64Value, got %T", dataID))
+			return
+		}
+		deletedIds = append(deletedIds, dataIDInteger.ValueInt64())
 	}
 
 	err := r.updateConfig(plan, deletedIds)
@@ -494,8 +504,9 @@ func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, de
 	}
 
 	for _, dataID := range deletedHeaders {
+		id := dataID
 		rule := &cdnetworksapi.HeaderModifyRule{
-			DataId: &dataID,
+			DataId: &id,
 		}
 
 		rules = append(rules, rule)
