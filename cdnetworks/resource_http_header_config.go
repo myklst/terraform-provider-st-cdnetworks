@@ -85,7 +85,7 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 				Computed:    true,
 			},
 			"header_ids_v2": &schema.MapAttribute{
-				Description: "Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.",
+				Description: "The second version of computed header ids. This version supports duplicate header names, by hashing all of the content of the header config to get a unique value.",
 				ElementType: types.Int64Type,
 				Optional:    false,
 				Required:    false,

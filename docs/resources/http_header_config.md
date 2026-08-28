@@ -40,6 +40,7 @@ resource "st-cdnetworks_http_header_config" "test" {
 ### Read-Only
 
 - `header_ids` (Map of Number) Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.
+- `header_ids_v2` (Map of Number) The second version of computed header ids. This version supports duplicate header names, by hashing all of the content of the header config to get a unique value.
 
 <a id="nestedblock--header_rule"></a>
 ### Nested Schema for `header_rule`
