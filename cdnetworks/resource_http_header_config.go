@@ -46,7 +46,6 @@ type headerRuleModel struct {
 type httpHeaderConfigModel struct {
 	DomainId    types.String       `tfsdk:"domain_id"`
 	HeaderIds   types.Map          `tfsdk:"header_ids"`
-	HeaderIdsV2 types.Map          `tfsdk:"header_ids_v2"`
 	Rules       []*headerRuleModel `tfsdk:"header_rule"`
 }
 
@@ -79,13 +78,6 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 			},
 			"header_ids": &schema.MapAttribute{
 				Description: "Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.",
-				ElementType: types.Int64Type,
-				Optional:    false,
-				Required:    false,
-				Computed:    true,
-			},
-			"header_ids_v2": &schema.MapAttribute{
-				Description: "The second version of computed header ids. This version supports duplicate header names, by hashing all of the content of the header config to get a unique value.",
 				ElementType: types.Int64Type,
 				Optional:    false,
 				Required:    false,
@@ -333,13 +325,13 @@ func (r *httpHeaderConfigResource) Update(ctx context.Context, req resource.Upda
 
 	// The header ids of the plan is known after apply.
 	// Temporarily set it to the header ids of the state
-	plan.HeaderIdsV2 = state.HeaderIdsV2
+	plan.HeaderIds = state.HeaderIds
 
 	// Deletion of headers might occur as a part of the update phase.
 	// Find the headers that are present in the state but not in the plan
 	deletedHeaders := headersInState.Difference(headersInPlan)
 	deletedIds := []int64{}
-	for hash, dataID := range state.HeaderIdsV2.Elements() {
+	for hash, dataID := range state.HeaderIds.Elements() {
 		hashInt64, err := strconv.ParseUint(hash, 10, 64)
 		if err != nil {
 			resp.Diagnostics.AddError("cannot parse string to int64", "")
@@ -407,7 +399,7 @@ func (r *httpHeaderConfigResource) Delete(ctx context.Context, req resource.Dele
 
 	// During deletion, only the data-id needs to be passed in.
 	deletedRules := []int64{}
-	for _, dataID := range model.HeaderIdsV2.Elements() {
+	for _, dataID := range model.HeaderIds.Elements() {
 		dataIDInteger, ok := dataID.(basetypes.Int64Value)
 		if !ok {
 			resp.Diagnostics.AddError("attr.Value error", fmt.Sprintf("expected types.Int64, got %T", dataID))
@@ -485,14 +477,14 @@ func (r *httpHeaderConfigResource) ImportState(ctx context.Context, req resource
 	}
 
 	model.Rules = rules
-	model.HeaderIdsV2, _ = types.MapValue(types.Int64Type, headerIDs)
+	model.HeaderIds, _ = types.MapValue(types.Int64Type, headerIDs)
 
 	resp.State.Set(ctx, model)
 }
 
 func (r *httpHeaderConfigResource) updateConfig(model *httpHeaderConfigModel, deletedHeaders []int64) error {
 	rules := make([]*cdnetworksapi.HeaderModifyRule, 0)
-	elems := model.HeaderIdsV2.Elements()
+	elems := model.HeaderIds.Elements()
 
 	if model.Rules != nil {
 		for _, ruleModel := range model.Rules {
@@ -637,7 +629,7 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 		headerIDs[strconv.FormatUint(hash, 10)] = types.Int64Value(headerIDsInHTTPResp[hash])
 	}
 	model.Rules = rules
-	model.HeaderIdsV2, _ = types.MapValue(types.Int64Type, headerIDs)
+	model.HeaderIds, _ = types.MapValue(types.Int64Type, headerIDs)
 
 	return nil
 }
@@ -679,7 +671,7 @@ func (r *httpHeaderConfigResource) readHeaderDataID(model *httpHeaderConfigModel
 
 		elems[strconv.FormatUint(hash, 10)] = types.Int64Value(dataID)
 	}
-	model.HeaderIdsV2, _ = types.MapValue(types.Int64Type, elems)
+	model.HeaderIds, _ = types.MapValue(types.Int64Type, elems)
 
 	return nil
 }
