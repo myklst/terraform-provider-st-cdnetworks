@@ -35,11 +35,12 @@ resource "st-cdnetworks_http_header_config" "test" {
 
 ### Optional
 
-- `header_rule` (Block Set) Header rule (see [below for nested schema](#nestedblock--header_rule))
+- `header_rule` (Block Set) A set of header rules. Note: 1. Two header rules with the exact same configuration will be considered as one rule only, inline with the behaviour of SetNestedBllock 2. During an update of an existing header rule, the old header rule will be destroyed and a new rule will be created in its place. (see [below for nested schema](#nestedblock--header_rule))
 
 ### Read-Only
 
-- `header_ids` (Map of Number)
+- `header_ids` (Map of Number) Due to Terraform constraints, the id of each header_rule that is given by the vendor is stored separately from the header_rule block. A hash of each header_rule is mapped to its id (obtained via the vendor API after the header_rule is created). Subsequent reads, updates and delete actions will rely on this computed attribute to obtain the correct header_ids.
+- `header_ids_v2` (Map of Number) The second version of computed header ids. This version supports duplicate header names, by hashing all of the content of the header config to get a unique value.
 
 <a id="nestedblock--header_rule"></a>
 ### Nested Schema for `header_rule`
@@ -98,6 +99,7 @@ Optional:
 #cookie{XXX} : get the value in the cookie, such as #cookie{account}, is to get the value of the account set in the cookie
 - `override` (Boolean) If set to true, creates a new header or overwrite the existing header value. If set to false, appends a new header. Only applies to these two directions, cache2origin and cache2visitor.
 - `path_pattern` (String) The url matching mode supports fuzzy regularization. If all matches, the input parameters can be configured as: *
+- `priority` (Number) The priority of the execution order. The bigger the number, the higher the priority.
 - `request_header` (String) Match request header, header values support regular, header and header values separated by Spaces, e.g. : Range bytes=[0-9]{9,}
 - `request_method` (String) The matching request method, the optional values are: GET, POST, PUT, HEAD, DELETE, OPTIONS, separate by semicolons.
 - `specify_url_pattern` (String) Matching Condition: Specify URL. The input parameter does not support the URI format starting with http(s)://
