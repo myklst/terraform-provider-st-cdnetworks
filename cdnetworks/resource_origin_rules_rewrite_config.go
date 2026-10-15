@@ -85,7 +85,8 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 						"path_pattern_http": &schema.StringAttribute{
 							Description: strings.Join([]string{
 								"Whether to match only paths with HTTP or HTTPS protocol only.",
-								"Default is blank, matches all paths regardless of protocol"}, " "),
+								"Default is blank, matches all paths regardless of protocol",
+							}, " "),
 							Optional: true,
 						},
 						"except_path_pattern": &schema.StringAttribute{
@@ -95,7 +96,8 @@ func (r *originRulesRewriteConfigResource) Schema(_ context.Context, req resourc
 						"except_path_pattern_http": &schema.StringAttribute{
 							Description: strings.Join([]string{
 								"Whether to match only paths with HTTP or HTTPS protocol only.",
-								"Default is blank, matches all paths regardless of protocol"}, " "),
+								"Default is blank, matches all paths regardless of protocol",
+							}, " "),
 							Optional: true,
 						},
 						"ignore_letter_case": &schema.BoolAttribute{

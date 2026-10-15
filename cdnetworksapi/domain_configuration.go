@@ -420,7 +420,7 @@ func (c *Client) UpdateRedirectConfig(domainId string, request UpdateRedirectCon
 ////////////////////////////////////////////////////////////////////////////////
 
 type HeaderModifyRule struct {
-	DataId            *int64  `json:"data-id,omitempty" xml:"data-id,omitempty"`
+	DataId            *int64  `json:"data-id,omitempty" xml:"data-id,omitempty" hash:"ignore"`
 	PathPattern       *string `json:"path-pattern,omitempty" xml:"path-pattern,omitempty"`
 	ExceptPathPattern *string `json:"except-path-pattern,omitempty" xml:"except-path-pattern,omitempty"`
 	CustomPattern     *string `json:"custom-pattern,omitempty" xml:"custom-pattern,omitempty"`
@@ -436,6 +436,7 @@ type HeaderModifyRule struct {
 	HeaderName        *string `json:"header-name,omitempty" xml:"header-name,omitempty"`
 	HeaderValue       *string `json:"header-value,omitempty" xml:"header-value,omitempty"`
 	Override          *bool   `json:"override,omitempty" xml:"override,omitempty"`
+	Priority          *int64  `json:"priority,omitempty" xml:"priority,omitempty"`
 }
 
 // QueryHttpConfig 查询http头配置接口

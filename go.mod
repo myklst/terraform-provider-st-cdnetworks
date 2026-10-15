@@ -9,6 +9,8 @@ require (
 	github.com/hashicorp/terraform-plugin-framework-validators v0.12.0
 )
 
+require github.com/mitchellh/hashstructure v1.1.0
+
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
