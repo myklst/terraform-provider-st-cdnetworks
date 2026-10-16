@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -44,9 +45,9 @@ type headerRuleModel struct {
 }
 
 type httpHeaderConfigModel struct {
-	DomainId    types.String       `tfsdk:"domain_id"`
-	HeaderIds   types.Map          `tfsdk:"header_ids"`
-	Rules       []*headerRuleModel `tfsdk:"header_rule"`
+	DomainId  types.String       `tfsdk:"domain_id"`
+	HeaderIds types.Map          `tfsdk:"header_ids"`
+	Rules     []*headerRuleModel `tfsdk:"header_rule"`
 }
 
 type httpHeaderConfigResource struct {
@@ -106,7 +107,7 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 							Validators: []validator.String{
 								stringvalidator.OneOf("all", "homepage", ""),
 							},
-							Default: nil,
+							Default: stringdefault.StaticString(""),
 						},
 						"custom_file_type": &schema.StringAttribute{
 							Description: "Matching condition: Custom file type, separate by semicolon.",
@@ -774,7 +775,7 @@ func fromHeaderRuleHTTPModel(rule *cdnetworksapi.HeaderModifyRule) *headerRuleMo
 		CustomFileType: types.StringPointerValue(rule.CustomFileType),
 		CustomPattern: func() basetypes.StringValue {
 			if rule.CustomPattern == nil || *rule.CustomPattern == "" {
-				return types.StringNull()
+				return types.StringValue("")
 			} else {
 				return types.StringPointerValue(rule.CustomPattern)
 			}
