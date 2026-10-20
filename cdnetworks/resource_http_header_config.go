@@ -11,8 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -217,15 +215,13 @@ func (r *httpHeaderConfigResource) Schema(_ context.Context, req resource.Schema
 						},
 						"override": &schema.BoolAttribute{
 							Description: "If set to true, creates a new header or overwrite the existing header value. If set to false, appends a new header. Only applies to these two directions, cache2origin and cache2visitor.",
-							Optional:    true,
-							Computed:    true,
-							Default:     booldefault.StaticBool(false),
+							Computed:    false,
+							Required:    true,
 						},
 						"priority": &schema.Int64Attribute{
 							Description: "The priority of the execution order. The bigger the number, the higher the priority.",
-							Optional:    true,
-							Computed:    true,
-							Default:     int64default.StaticInt64(10),
+							Computed:    false,
+							Required:    true,
 						},
 					},
 				},
@@ -610,12 +606,6 @@ func (r *httpHeaderConfigResource) readModel(model *httpHeaderConfigModel) error
 
 	// Iterate over each model in the plan
 	for _, rule := range model.Rules {
-		if rule.Priority.IsNull() {
-			rule.Priority = basetypes.NewInt64Value(10)
-		}
-		if rule.Override.IsNull() {
-			rule.Override = basetypes.NewBoolValue(false)
-		}
 		tmpRule := toHeaderRuleHTTPModel(*rule)
 		hash, err := hashstructure.Hash(tmpRule, nil)
 		if err != nil {
